@@ -1,5 +1,6 @@
 # -*-coding:utf-8 -*-
 import numpy as np
+import jieba
 
 
 class GensimTokenizer(object):
@@ -14,8 +15,9 @@ class GensimTokenizer(object):
                    '[PAD]': 'zero',
                    '[SEP]': 'normal'}
 
-    def __init__(self, w2v, keep_oov=True):
-        self.w2v = w2v
+    def __init__(self, w2v, phraser=None, keep_oov=True):
+        self.model = w2v
+        self.phraser = phraser
         self.keep_oov = keep_oov
         self.vocab2idx = None
         self.idx2vocab = None
@@ -29,10 +31,10 @@ class GensimTokenizer(object):
         return self._embedding.astype(np.float32)
 
     def init_vocab(self):
-        self.vocab2idx = dict([(word, idx) for idx, word in enumerate(self.w2v.wv.key_to_index)])
+        self.vocab2idx = dict([(word, idx) for idx, word in enumerate(self.model.wv.key_to_index)])
         self.idx2vocab = dict([(j, i) for i, j in self.vocab2idx.items()])
 
-        self._embedding = np.array(self.w2v.wv.vectors)
+        self._embedding = np.array(self.model.wv.vectors)
         self.vocab_size = len(self.vocab2idx)
         self.embedding_size = self.embedding.shape[-1]
         for vocab, value in self.addon_vocab.items():
@@ -47,6 +49,14 @@ class GensimTokenizer(object):
         else:
             self._embedding = np.vstack((self._embedding,
                                          np.random.normal(0, 1, (1, self.embedding_size))))
+
+    def tokenize(self, text):
+        if self.phraser is None:
+            return [i for i in text]
+        elif self.phraser =='jieba':
+            return jieba.cut(text)
+        else:
+            return self.phraser[text]
 
     def convert_tokens_to_ids(self, tokens):
         ids = []
