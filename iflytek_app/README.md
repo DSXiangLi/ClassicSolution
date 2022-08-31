@@ -6,4 +6,4 @@
 4. 链接：https://challenge.xfyun.cn/topic/info?type=scene-division
 5. Top方案【待补充】
 6. 数据Demo 
- ![](data.png)
+ ![](https://files.mdnice.com/user/8955/092c5570-8f3b-429e-ac31-a1ad07b8292a.png)

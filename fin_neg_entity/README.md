@@ -13,4 +13,4 @@
     - Top5: [github](https://github.com/rebornZH/2019-CCF-BDCI-NLP) 
  6. 样本Demo
 
- ![](data.png) 
+ ![](https://files.mdnice.com/user/8955/1486ab47-8a3d-4451-a07f-802c2a007dc7.png) 
