@@ -7,8 +7,8 @@ import torch.nn as nn
 
 from src.enhancement.mixup import mixup
 from src.models.kmax_pool import Kmax_Pooling
-from src.enhancement.temporal import TemporalEnsemble
-from src.enhancement.pseudo_label import PseudoLabel
+from src.enhancement.consistency import TemporalEnsemble, MeanTeacher
+from src.enhancement.min_entropy import PseudoLabel
 
 
 class Textcnn(nn.Module):
@@ -236,3 +236,8 @@ class TextcnnPseudoLabel(PseudoLabel, Textcnn):
         # init nn.Module before others
         Textcnn.__init__(self, tp)
         PseudoLabel.__init__(self, tp)
+
+class TextcnnMeanTeacher(MeanTeacher, Textcnn):
+    def __init__(self, tp, tb):
+        Textcnn.__init__(self, tp)
+        MeanTeacher.__init__(self, tp, tb)
