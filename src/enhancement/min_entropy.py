@@ -18,9 +18,12 @@ class MinEnt(object):
 
         # unsupervised entropy
         cond = labels <0
-        probs = F.softmax(logits[cond], dim=-1)
-        self.unsupervised_loss = torch.sum(probs * torch.log(probs), dim=-1)
-        loss = self.supervised_loss + self.alpha * self.unsupervised_loss
+        if sum(cond)==0:
+            loss = self.supervised_loss
+        else:
+            probs = F.softmax(logits[cond], dim=-1)
+            self.unsupervised_loss = torch.sum(probs * torch.log(probs), dim=-1)
+            loss = self.supervised_loss + self.alpha * self.unsupervised_loss
         return loss
 
 
@@ -41,13 +44,16 @@ class PseudoLabel(object):
         # supervised_loss
         self.supervised_loss = self.loss_fn(logits[cond], labels[cond])
 
-        # unsupervised_loss
-        with torch.no_grad():
-            pseudo_label = torch.argmax(logits, dim=-1)
         cond = labels < 0
-        self.unsupervised_loss = self.loss_fn(logits[cond], pseudo_label[cond])
+        if sum(cond)==0:
+            loss = self.supervised_loss
+        else:
+            # unsupervised_loss
+            with torch.no_grad():
+                pseudo_label = torch.argmax(logits, dim=-1)
 
-        loss = self.supervised_loss + self.alpha_t * self.unsupervised_loss
+            self.unsupervised_loss = self.loss_fn(logits[cond], pseudo_label[cond])
+            loss = self.supervised_loss + self.alpha_t * self.unsupervised_loss
 
         return loss
 
