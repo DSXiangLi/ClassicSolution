@@ -122,7 +122,7 @@ class WordSwap(Augmenter):
 
     def get_swap_pos(self, left, right):
         if left>right or random.random() >self.prob:
-            return left-1
+            return None
         else:
             return random.randint(left, right)
 
@@ -131,11 +131,17 @@ class WordSwap(Augmenter):
         words = self.tokenizer.tokenize(text)
         index = self.get_aug_index(words)
         l = len(words)
+        flag = False
         for i in index:
             pos = self.get_swap_pos(i + 1, l-1)
-            words[i], words[pos] = words[pos], words[i]
+            if pos:
+                words[i], words[pos] = words[pos], words[i]
+                flag=True
             new_sample.append(words[i])
-        return new_sample
+        if flag:
+            return new_sample
+        else:
+            return None
 
 
 class WordDelete(Augmenter):
@@ -147,8 +153,13 @@ class WordDelete(Augmenter):
         new_sample = []
         words = self.tokenizer.tokenize(text)
         index = self.get_aug_index(words)
+        flag = False
         for i in range(len(words)):
             if i in index and random.random()< self.prob:
+                flag = True
                 continue
             new_sample.append(words[i])
-        return new_sample
+        if flag:
+            return new_sample
+        else:
+            return None
