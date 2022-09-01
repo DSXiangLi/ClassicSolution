@@ -91,7 +91,11 @@ class TextcnnMixup(nn.Module):
 
         # BatchNorm1d is applied on (N,C,L)C or (N,L)L
         if features.get('label') is not None:
-            x, self.ymix = mixup(x, features['label'], self.label_size, self.alpha)
+            if self.training:
+                x, self.ymix = mixup(x, features['label'], self.label_size, self.alpha)
+            else:
+                # don't do mixup in eval mode
+                self.ymix = features['label']
 
         x = self.projector(x.contiguous().view(-1, x.size(-1))).view(x.size(0), x.size(1),
                                                                      -1)  # (batch_size, seq_len, hidden_size)
@@ -236,6 +240,7 @@ class TextcnnPseudoLabel(PseudoLabel, Textcnn):
         # init nn.Module before others
         Textcnn.__init__(self, tp)
         PseudoLabel.__init__(self, tp)
+
 
 class TextcnnMeanTeacher(MeanTeacher, Textcnn):
     def __init__(self, tp, tb):
