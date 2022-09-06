@@ -4,6 +4,7 @@ import numpy as np
 from torchmetrics import Accuracy, AUROC, AveragePrecision, F1Score, Recall, Precision
 
 
+
 def binary_cls_metrics(model, valid_loader, device, threshold=0.5):
     """
     Binary Classification Metircs， support
@@ -17,12 +18,12 @@ def binary_cls_metrics(model, valid_loader, device, threshold=0.5):
     model.eval()
 
     metrics = {
-        'acc': Accuracy(threshold=threshold).to(device),
-        'auc': AUROC().to(device),
-        'ap': AveragePrecision().to(device),
-        'f1': F1Score().to(device),
-        'recall': Recall(threshold=threshold).to(device),
-        'precision': Precision(threshold=threshold).to(device)
+        'acc': Accuracy(threshold=threshold, num_classes=2).to(device),
+        'auc': AUROC(num_classes=2).to(device),
+        'ap': AveragePrecision(num_classes=2).to(device),
+        'f1': F1Score(num_classes=2).to(device),
+        'recall': Recall(threshold=threshold, num_classes=2).to(device),
+        'precision': Precision(threshold=threshold, num_classes=2).to(device)
     }
     val_loss = []
 

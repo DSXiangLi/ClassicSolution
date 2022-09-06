@@ -119,12 +119,21 @@ class MentionHandler(StrHandler):
         re_mention = re.compile(r'@[\w\W\u4e00-\u9fff]+\s')
         return re_mention
 
+class UrlHandler(StrHandler):
+    def __init__(self):
+        super(UrlHandler, self).__init__()
+
+    def init(self):
+        re_url = re.compile(r'https?://(?:[-\w.]|(?:%[\da-fA-F]{2}))+')
+        return re_url
+
 
 stop_word_handler = StopWordHandler()
 text_emoji_handler = TextEmojiHandler()
 punctuation_handler = PunctuationHandler()
 emoji_handler = EmojiHandler()
 mention_handler = MentionHandler()
+url_handler = UrlHandler()
 
 if __name__ == '__main__':
     print(emoji_handler.remove('记者都怒了[惊呆]'))
