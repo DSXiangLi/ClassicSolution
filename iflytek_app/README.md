@@ -7,3 +7,4 @@
 5. Top方案【待补充】
 6. 数据Demo 
  ![](https://files.mdnice.com/user/8955/092c5570-8f3b-429e-ac31-a1ad07b8292a.png)
+7. 请自行按链接下载数据到./iflytek_app/trainsample目录下
