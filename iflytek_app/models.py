@@ -5,11 +5,61 @@
 import torch
 import torch.nn as nn
 
-from src.enhancement.mixup import mixup
+from src.enhancement.mixup import Mixup
 from src.models.kmax_pool import Kmax_Pooling
 from src.enhancement.consistency import TemporalEnsemble, MeanTeacher
 from src.enhancement.min_entropy import PseudoLabel
+from src.layers.dropout import SpatialDropout
 
+
+class TextcnnAugment(nn.Module):
+    def __init__(self, tp):
+        super(TextcnnAugment, self).__init__()
+        self.tp = tp
+        self.loss_fn = tp.loss_fn
+        self.embedding1 = nn.Embedding.from_pretrained(torch.tensor(tp.embedding1, dtype=torch.float32), freeze=False)
+        self.embedding2 = nn.Embedding.from_pretrained(torch.tensor(tp.embedding2, dtype=torch.float32), freeze=False)
+        self.label_size = tp.label_size
+        self.projector = nn.Sequential(
+            nn.Linear(tp.embedding_dim, tp.hidden_size),
+            nn.BatchNorm1d(tp.hidden_size),  # order of BN and Relu is case relevant
+            nn.ReLU(True)
+        )
+        self.convs = nn.ModuleList([nn.Sequential(
+            nn.Conv1d(in_channels=tp.hidden_size,
+                      out_channels=tp.filter_size,
+                      kernel_size=kernel_size),
+            nn.ReLU(inplace=True),
+            nn.MaxPool1d(kernel_size=(tp.max_seq_len - kernel_size * 2 + 2))
+        )
+            for kernel_size in tp.kernel_size_list])
+        self.dropout = nn.Dropout(tp.dropout_rate)
+        self.fc = nn.Linear(int(tp.filter_size * len(tp.kernel_size_list)), tp.label_size)
+        self.spatial_dropout = SpatialDropout(tp.spatial_dropout_rate)
+
+    def forward(self, features):
+        x1 = self.embedding1(features['token_ids'])  # (batch_size, seq_len, emb_dim)
+        x2 = self.embedding2(features['word_ids'])
+        x = torch.cat([x1, x2], dim=-1)
+        # BatchNorm1d is applied on (N,C,L)C or (N,L)L
+        x = self.projector(x.contiguous().view(-1, x.size(-1))).view(x.size(0), x.size(1),
+                                                                     -1)  # (batch_size, seq_len, hidden_size)
+        x = self.spatial_dropout(x)
+        x = [conv(x.permute(0, 2, 1)).squeeze(-1) for conv in self.convs]  # input (batch_size, channel, # seq_len)
+        x = torch.cat(x, dim=1)  # (batch_size, sum(filter_size))
+        x = self.dropout(x)
+
+        logits = self.fc(x)
+        return logits
+
+    def get_optimizer(self):
+        optimizer = torch.optim.Adam(self.parameters(), lr=self.tp.lr)
+        scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, **self.tp.scheduler_params)
+        return optimizer, scheduler
+
+    def compute_loss(self, features, logits):
+        loss = self.loss_fn(logits, features['label'])
+        return loss
 
 class Textcnn(nn.Module):
     def __init__(self, tp):
@@ -34,11 +84,15 @@ class Textcnn(nn.Module):
             for kernel_size in tp.kernel_size_list])
         self.dropout = nn.Dropout(tp.dropout_rate)
         self.fc = nn.Linear(int(tp.filter_size * len(tp.kernel_size_list)), tp.label_size)
+        # self.spatial_dropout = SpatialDropout(tp.spatial_dropout_rate)
 
     def forward(self, features):
         x1 = self.embedding1(features['token_ids'])  # (batch_size, seq_len, emb_dim)
         x2 = self.embedding2(features['word_ids'])
         x = torch.cat([x1, x2], dim=-1)
+        # if self.tp.augment:
+        #     x = self.spatial_dropout()
+
         # BatchNorm1d is applied on (N,C,L)C or (N,L)L
         x = self.projector(x.contiguous().view(-1, x.size(-1))).view(x.size(0), x.size(1),
                                                                      -1)  # (batch_size, seq_len, hidden_size)
@@ -83,6 +137,7 @@ class TextcnnMixup(nn.Module):
             for kernel_size in tp.kernel_size_list])
         self.dropout = nn.Dropout(tp.dropout_rate)
         self.fc = nn.Linear(int(tp.filter_size * len(tp.kernel_size_list)), tp.label_size)
+        self.mixup = Mixup(tp.label_size, tp.mixup_alpha)
 
     def forward(self, features):
         x1 = self.embedding1(features['token_ids'])  # (batch_size, seq_len, emb_dim)
@@ -91,11 +146,7 @@ class TextcnnMixup(nn.Module):
 
         # BatchNorm1d is applied on (N,C,L)C or (N,L)L
         if features.get('label') is not None:
-            if self.training:
-                x, self.ymix = mixup(x, features['label'], self.label_size, self.alpha)
-            else:
-                # don't do mixup in eval mode
-                self.ymix = features['label']
+            x, self.label = self.mixup(x, features['label'])
 
         x = self.projector(x.contiguous().view(-1, x.size(-1))).view(x.size(0), x.size(1),
                                                                      -1)  # (batch_size, seq_len, hidden_size)
@@ -107,7 +158,7 @@ class TextcnnMixup(nn.Module):
         return logits
 
     def compute_loss(self, features, logits):
-        loss = self.loss_fn(logits, self.ymix)
+        loss = self.loss_fn(logits, self.label)
         return loss
 
     def get_optimizer(self):
@@ -242,7 +293,8 @@ class TextcnnPseudoLabel(PseudoLabel, Textcnn):
         PseudoLabel.__init__(self, tp)
 
 
-class TextcnnMeanTeacher(MeanTeacher, Textcnn):
-    def __init__(self, tp, tb):
-        Textcnn.__init__(self, tp)
-        MeanTeacher.__init__(self, tp, tb)
+class TextcnnAugTemporal(TemporalEnsemble, TextcnnAugment):
+    def __init__(self, tp):
+        TextcnnAugment.__init__(self, tp)
+        TemporalEnsemble.__init__(self, tp)
+
