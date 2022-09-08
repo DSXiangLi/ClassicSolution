@@ -6,7 +6,7 @@ import json
 def data_loader(file_name):
     def helper():
         data = []
-        with open(file_name, 'r') as f:
+        with open(file_name, 'r', encoding='utf-8') as f:
             for line in f.readlines():
                 data.append(json.loads(line.strip()))
         return data
