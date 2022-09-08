@@ -2,6 +2,7 @@
 
 from torch import nn
 from transformers import BertModel
+from transformers import AdamW, get_linear_schedule_with_warmup
 
 
 class BertClassifier(nn.Module):

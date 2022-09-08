@@ -1,20 +1,40 @@
 # -*-coding:utf-8 -*-
 import torch
+import json
+
+
+def data_loader(file_name):
+    def helper():
+        data = []
+        with open(file_name, 'r') as f:
+            for line in f.readlines():
+                data.append(json.loads(line.strip()))
+        return data
+    return helper
+
 
 class SeqPairDataset():
-    def __init__(self, max_seq_len, tokenizer, text1, text2=None, y=None):
+    def __init__(self, data_loader, max_seq_len, tokenizer):
+        self.raw_data = data_loader()
         self.max_seq_len = max_seq_len
         self.tokenizer = tokenizer
         self.features = []
         self.labels = []
-        self.build_feature(text1, text2, y)
+        self.build_feature()
 
-    def build_feature(self, text1, text2, y):
-        for t1, t2 in zip(text1, text2):
-            self.features.append(self.tokenizer.encode_plus(t1, t2, padding='max_length',
-                                                            truncation=True, max_length=self.max_seq_len, verbose=False))
-        if y is not None:
-            self.labels = [i for i in y ]
+    def build_feature(self):
+        if 'text2' in self.raw_data[0]:
+            for data in self.raw_data:
+                self.features.append(self.tokenizer.encode_plus(data['text1'], data['text2'], padding='max_length',
+                                                                truncation=True, max_length=self.max_seq_len,
+                                                                verbose=False))
+        else:
+            for data in self.raw_data:
+                self.features.append(self.tokenizer.encode_plus(data['text1'], padding='max_length',
+                                                                truncation=True, max_length=self.max_seq_len,
+                                                                verbose=False))
+        if 'label' in self.raw_data[0]:
+            self.labels = [data['label'] for data in self.raw_data]
 
     def __getitem__(self, idx):
         sample = self.features[idx]
