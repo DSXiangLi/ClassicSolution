@@ -3,7 +3,7 @@ import numpy as np
 import pandas as pd
 import re
 from src.preprocess.str_utils import full2half
-from sklearn.model_selection import train_test_split
+
 
 def filter_entity(entity, text):
     # 过滤重复，单字，空实体, 不在文本中的错误实体
@@ -210,24 +210,3 @@ def task_format3(df):
     df['other_entity'] = df.apply(lambda x: [i for i in x.entity if i != x.single_entity], axis=1)
     df['other_entity'] = df['other_entity'].map(lambda x: ' '.join(x))
     return df
-
-
-if __name__ == '__main__':
-    from src.dataset.converter import single_text, double_text
-    data_dir = './trainsample'
-
-    df = data_process()
-    df1 = task_format1(df)
-    train, valid = train_test_split(df1, test_size= 0.2, random_state=1234)
-    double_text(train['id'], train['single_entity'], train['corpus'], train['label'], data_dir, 'train1')
-    double_text(valid['id'], valid['single_entity'], valid['corpus'], valid['label'], data_dir, 'valid1')
-
-    df2 = task_format2(df)
-    train, valid = train_test_split(df2, test_size= 0.2, random_state=1234)
-    single_text(train['id'], train['corpus'], train['label'], data_dir, 'train2')
-    single_text(valid['id', ], valid['corpus'], valid['label'], data_dir, 'valid2')
-
-    df3 = task_format3(df)
-    train, valid = train_test_split(df3, test_size= 0.2, random_state=1234)
-    double_text(train['id'],train['other_entity'], train['corpus'], train['label'], data_dir, 'train3')
-    double_text(valid['id'], valid['other_entity'], valid['corpus'], valid['label'], data_dir, 'valid3')

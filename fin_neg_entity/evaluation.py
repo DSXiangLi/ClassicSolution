@@ -22,7 +22,7 @@ def entity_f1(pred_entity, y):
 
 
 def overall_f1(df):
-    df['pred_entity'] = df['text1']
+    df['pred_entity'] = df['single_entity']
     df.loc[df['pred'] == 0, 'pred_entity'] = ''
 
     stat = df.groupby('id').agg({'label': sum, 'pred': sum})
