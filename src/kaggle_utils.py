@@ -4,7 +4,12 @@ import os
 import zipfile
 
 
-def dir2zip(kaggle_path='/kaggle/working/', file_dir='', download=True):
+def dir2zip(kaggle_path='/kaggle/working/', file_dir=''):
+    """
+        欲在kaggle下载对应zip文件，需要download link
+        from IPython.display import FileLink
+        display(FileLink(zip_path))
+    """
     zip_path = os.path.join(kaggle_path, file_dir + '.zip')
     zip = zipfile.ZipFile(zip_path, 'w', zipfile.ZIP_DEFLATED)
 
@@ -18,7 +23,3 @@ def dir2zip(kaggle_path='/kaggle/working/', file_dir='', download=True):
             name = fpath + '\\' + name
             zip.write(fullName, name)
     zip.close()
-
-    if download:
-        from IPython.display import FileLink
-        return FileLink(zip_path)
