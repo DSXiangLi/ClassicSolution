@@ -187,7 +187,6 @@ def task_format3(df):
     双输入文本+二分类任务
     text1：其他实体拼接
     text2：title+text
-    其他伴随实体都用[O]进行替换
     待预测实体用’[E]‘在实体的左右边界进行标记
     """
     df['single_entity'] = df['entity']
@@ -210,3 +209,30 @@ def task_format3(df):
     df['other_entity'] = df.apply(lambda x: [i for i in x.entity if i != x.single_entity], axis=1)
     df['other_entity'] = df['other_entity'].map(lambda x: ' '.join(x))
     return df
+
+
+def task_format4(df):
+    """
+    在Format3的基础上，加入多任务，用句子整体的negative label辅助实体学习
+    """
+    df['single_entity'] = df['entity']
+    df = df.explode('single_entity').reset_index(drop=True)
+    # label = negative & 实体为核心实体
+    if 'negative' in df.columns:
+        df['label1'] = df.apply(lambda x: 1 if x.single_entity in x.key_entity and x.negative else 0, axis=1)
+        df['label2'] = df['negative']
+    # 定位实体在标题和文本中的位置
+    df['title_pos'] = df.apply(lambda x: find_pos(x.title, x.single_entity), axis=1)
+    df['text_pos'] = df.apply(lambda x: find_pos(x.text, x.single_entity), axis=1)
+    # 针对前510没有出现实体的，截取实体出现位置前300+后200
+    df['corpus'] = df.apply(lambda x: merge_text2(x.title, x.text, x.single_entity, x.title_pos, x.text_pos),
+                            axis=1)
+
+    # 添加实体标记
+    df['corpus'] = df.apply(lambda x: tag_pred_entity(x.corpus, x.single_entity), axis=1)
+
+    # 定位伴随实体 & 特殊token替换伴随实体
+    df['other_entity'] = df.apply(lambda x: [i for i in x.entity if i != x.single_entity], axis=1)
+    df['other_entity'] = df['other_entity'].map(lambda x: ' '.join(x))
+    return df
+
