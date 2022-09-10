@@ -4,8 +4,7 @@ import numpy as np
 from torchmetrics import Accuracy, AUROC, AveragePrecision, F1Score, Recall, Precision
 
 
-
-def binary_cls_metrics(model, valid_loader, device, threshold=0.5):
+def binary_cls_metrics(model, valid_loader, device, threshold=0.5, label_name='label'):
     """
     Binary Classification Metircs， support
     - Macro/micro average
@@ -39,16 +38,16 @@ def binary_cls_metrics(model, valid_loader, device, threshold=0.5):
         preds = (probs[:, 1] > threshold).int().to(device)
         for metric in metrics.values():
             if metric in ['auc', 'ap']:
-                metric.update(probs, features['label'])
+                metric.update(probs, features[label_name])
             else:
-                metric.update(preds, features['label'])
+                metric.update(preds, features[label_name])
 
     multi_metrics = {key: metric.compute().item() for key, metric in metrics.items()}
     multi_metrics['val_loss'] = np.mean(val_loss)
     return multi_metrics
 
 
-def multi_cls_metrics(model, valid_loader, device):
+def multi_cls_metrics(model, valid_loader, device, label_name='label'):
     """
     Multi class classification Metics
     - Macro/micro average
@@ -90,9 +89,9 @@ def multi_cls_metrics(model, valid_loader, device):
         preds = torch.argmax(probs, dim=-1)
         for metric in metrics.values():
             if 'auc' in metric or 'ap' in metric:
-                metric.update(probs, features['label'])
+                metric.update(probs, features[label_name])
             else:
-                metric.update(preds, features['label'])
+                metric.update(preds, features[label_name])
 
     multi_metrics = {key: metric.compute().item() for key, metric in metrics.items()}
     multi_metrics['val_loss'] = np.mean(val_loss)
@@ -125,7 +124,7 @@ def seq_tag_metrics(model, valid_loader, device):
 
         with torch.no_grad():
             preds, loss = model(features)
-            loss = mode.compute_loss(features, )
+            loss = model.compute_loss(features, )
 
         val_loss.append(loss.item())
         # apply mask to label and pred: mask CLS, SEP, PAD
