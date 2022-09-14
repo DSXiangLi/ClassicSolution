@@ -3,7 +3,7 @@ import numpy as np
 import pandas as pd
 import re
 from src.preprocess.str_utils import full2half
-
+from src.dataset.chinese_ref import  prepare_word_ref
 
 def filter_entity(entity, text):
     # 过滤重复，单字，空实体, 不在文本中的错误实体
@@ -111,6 +111,8 @@ def data_process():
     # 过滤无实体文本
     df = df.loc[df['l_entity'] != 0, :]  # 过滤没有实体的样本
     print(df.describe(percentiles=[0.75, 0.95, 0.99]))
+
+
     return df
 
 
@@ -236,3 +238,19 @@ def task_format4(df):
     df['other_entity'] = df['other_entity'].map(lambda x: ' '.join(x))
     return df
 
+
+def task_whole_word_mlm(df):
+    """
+    Input:
+        df: output from data_process
+        output_file: word, entity reference file for WWWM/entity mask
+    """
+    from ltp import LTP
+    from itertools import chain
+    from transformers import BertTokenizer
+    tokenizer = BertTokenizer.from_pretrained('hfl/chinese-roberta-wwm-ext', do_lower_case=True)
+    ltp = LTP()
+    entity_list = list(chain(*df['entity'].values))
+    ltp.add_words(entity_list)
+    df['ref_ids']= prepare_word_ref(list(df['merge_text'].values), ltp, tokenizer)
+    return df

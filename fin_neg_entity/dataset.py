@@ -1,6 +1,7 @@
 # -*-coding:utf-8 -*-
 import torch
 import json
+from torch.utils.data import Dataset
 
 
 def data_loader(file_name):
@@ -13,7 +14,27 @@ def data_loader(file_name):
     return helper
 
 
-class SeqPairDataset():
+class SeqMlmDataset(Dataset):
+    def __init__(self, data_loader, max_seq_len, tokenizer):
+        self.tokenizer = tokenizer
+        self.examples = []
+        self.raw_data = data_loader()
+        self.max_seq_len = max_seq_len
+        self.build_feature()
+
+    def build_feature(self):
+        for data in self.raw_data:
+            input_ids = self.tokenizer.encode_plus(data['text1'], truncation=True, max_length=self.max_seq_len).input_ids
+            ref_ids = data['ref']
+            self.examples.append({'input_ids': input_ids, 'chinese_ref': ref_ids})
+
+    def __getitem__(self, idx):
+        return self.examples[idx]
+
+    def __len__(self):
+        return len(self.examples)
+
+class SeqPairDataset(Dataset):
     def __init__(self, data_loader, max_seq_len, tokenizer):
         self.raw_data = data_loader()
         self.max_seq_len = max_seq_len
@@ -47,7 +68,7 @@ class SeqPairDataset():
         return len(self.features)
 
 
-class SeqPairMtlDataset():
+class SeqPairMtlDataset(Dataset):
     def __init__(self, data_loader, max_seq_len, tokenizer):
         self.raw_data = data_loader()
         self.max_seq_len = max_seq_len

@@ -1,6 +1,8 @@
 # -*-coding:utf-8 -*-
 from typing import List
-from ltp import LTP
+import os
+import json
+from collections import namedtuple
 
 
 def _is_chinese_char(cp):
@@ -110,6 +112,15 @@ def prepare_word_ref(lines, ltp_tokenizer, bert_tokenizer):
         ref_ids.append(ref_id)
 
     assert len(ref_ids) == len(bert_res)
+    return ref_ids
+
+
+def single_text_with_ref(id_list, text_list, ref_list, data_dir, output_file):
+    Fmt = namedtuple('SingleText', ['id', 'text1', 'ref'])
+
+    with open(os.path.join(data_dir, output_file + '.txt'), 'w', encoding='utf-8') as f:
+        for i, t, l in zip(id_list, text_list, ref_list):
+            f.write(json.dumps(Fmt(i, t, l)._asdict(), ensure_ascii=False) + '\n')
 
 
 if __name__ == '__main__':
