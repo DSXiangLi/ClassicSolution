@@ -87,8 +87,8 @@ def merge_text2(title, text, entity, title_pos, text_pos):
     return s
 
 
-def data_process():
-    df = pd.read_csv('./trainsample/Train_Data.csv')
+def data_process(file):
+    df = pd.read_csv(file)
 
     # 文本预处理
     df.fillna({'title': '', 'text': '', 'entity': '', 'key_entity': ''}, inplace=True)
@@ -100,13 +100,15 @@ def data_process():
     df['merge_text'] = df.apply(lambda x: merge_text1(x.title, x.text), axis=1)
     df['entity'] = df['entity'].map(lambda x: full2half(x))
     df['entity'] = df.apply(lambda x: filter_entity(x.entity, x.merge_text), axis=1)
-    df['key_entity'] = df['key_entity'].map(lambda x: full2half(x))
+
     # 长度统计
     df['l_title'] = df['title'].map(lambda x: len(x))
     df['l_text'] = df['text'].map(lambda x: len(x))
     df['l_entity'] = df['entity'].map(lambda x: len(x))
-    df['l_kentity'] = df['key_entity'].map(lambda x: len(x.split(';')) if x else 0)
-    df['l_other'] = df['l_entity'] - df['l_kentity']
+    if 'key_entity' in df.columns:
+        df['key_entity'] = df['key_entity'].map(lambda x: full2half(x))
+        df['l_kentity'] = df['key_entity'].map(lambda x: len(x.split(';')) if x else 0)
+        df['l_other'] = df['l_entity'] - df['l_kentity']
 
     # 过滤无实体文本
     df = df.loc[df['l_entity'] != 0, :]  # 过滤没有实体的样本
