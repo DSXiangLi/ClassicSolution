@@ -9,7 +9,7 @@ class SeqMlmDataset(Dataset):
     def __init__(self, data_loader, max_seq_len, tokenizer):
         self.tokenizer = tokenizer
         self.examples = []
-        self.raw_data = data_loadergit()
+        self.raw_data = data_loader()
         self.max_seq_len = max_seq_len
         self.build_feature()
 
