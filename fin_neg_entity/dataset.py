@@ -2,23 +2,14 @@
 import torch
 import json
 from torch.utils.data import Dataset
-
-
-def data_loader(file_name):
-    def helper():
-        data = []
-        with open(file_name, 'r', encoding='utf-8') as f:
-            for line in f.readlines():
-                data.append(json.loads(line.strip()))
-        return data
-    return helper
+from src.dataset.converter import data_loader
 
 
 class SeqMlmDataset(Dataset):
     def __init__(self, data_loader, max_seq_len, tokenizer):
         self.tokenizer = tokenizer
         self.examples = []
-        self.raw_data = data_loader()
+        self.raw_data = data_loadergit()
         self.max_seq_len = max_seq_len
         self.build_feature()
 
