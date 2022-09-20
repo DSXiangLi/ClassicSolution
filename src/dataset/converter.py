@@ -5,6 +5,16 @@ import pandas as pd
 from collections import namedtuple
 
 
+def data_loader(file_name):
+    def helper():
+        data = []
+        with open(file_name, 'r', encoding='utf-8') as f:
+            for line in f.readlines():
+                data.append(json.loads(line.strip()))
+        return data
+    return helper
+
+
 def single_text(id_list, text_list, label_list, data_dir, output_file):
     Fmt = namedtuple('SingleText', ['id', 'text1', 'label'])
 
