@@ -2,6 +2,8 @@
 import torch
 import numpy as np
 from torchmetrics import Accuracy, AUROC, AveragePrecision, F1Score, Recall, Precision
+from src.custom_metric import SpanF1, SpanPrecision, SpanRecall
+from itertools import chain
 
 
 def binary_cls_metrics(model, valid_loader, device, threshold=0.5, label_name='label'):
@@ -64,7 +66,7 @@ def multi_cls_metrics(model, valid_loader, device, label_name='label'):
     for avg in ['micro', 'macro']:
         metrics.update({
             f'acc_{avg}': Accuracy(average=avg, num_classes=model.label_size).to(device),
-            f'f1_{avg}': F1Score(num_classes=model.label_size).to(device),
+            f'f1_{avg}': F1Score(average=avg, num_classes=model.label_size).to(device),
             f'recall_{avg}': Recall(average=avg, num_classes=model.label_size).to(device),
             f'precision_{avg}': Precision(average=avg, num_classes=model.label_size).to(device)
         })
@@ -98,7 +100,7 @@ def multi_cls_metrics(model, valid_loader, device, label_name='label'):
     return multi_metrics
 
 
-def seq_tag_metrics(model, valid_loader, device):
+def seq_tag_metrics(model, valid_loader, idx2label, schema, device):
     """
     Sequence Labelling task seq level metircs, supported
     - Macro/micro average
@@ -112,10 +114,9 @@ def seq_tag_metrics(model, valid_loader, device):
     metrics = {}
     for avg in ['micro', 'macro']:
         metrics.update({
-            f'acc_{avg}': Accuracy(average=avg, num_classes=model.label_size).to(device),
-            f'f1_{avg}': F1Score(num_classes=model.label_size).to(device),
-            f'recall_{avg}': Recall(average=avg, num_classes=model.label_size).to(device),
-            f'precision_{avg}': Precision(average=avg, num_classes=model.label_size).to(device)
+            f'f1_{avg}': SpanF1(idx2label=idx2label, schema=schema, avg=avg),
+            f'recall_{avg}': SpanRecall(idx2label=idx2label, schema=schema, avg=avg),
+            f'precision_{avg}': SpanPrecision(idx2label=idx2label, schema=schema, avg=avg)
         })
     val_loss = []
 
@@ -123,14 +124,14 @@ def seq_tag_metrics(model, valid_loader, device):
         features = {k: v.to(device) for k, v in batch.items()}
 
         with torch.no_grad():
-            preds, loss = model(features)
-            loss = model.compute_loss(features, )
+            logits = model(features)
+            loss = model.compute_loss(features, logits)
+            preds = model.decode(features, logits)
 
         val_loss.append(loss.item())
-        # apply mask to label and pred: mask CLS, SEP, PAD
-        mask = torch.logical_and(features['attentino_mask'].view(-1) == 1, input['label_ids'].view(-1) >=0)
-        preds = preds.view(-1)[mask]
-        label_ids = features['label_ids'].view(-1)[mask]
+        mask = features['attention_mask'].view(-1) == 1
+        label_ids = features['label_ids'].view(-1)[mask].cpu().numpy()
+        preds = list(chain(*preds))
         for metric in metrics.values():
             metric.update(preds, label_ids)
 
@@ -141,14 +142,14 @@ def seq_tag_metrics(model, valid_loader, device):
 
 def tag_cls_log(epoch, tag_metrics):
     print("\n")
-    print(f"{'Epoch':^7} | {'Macro Acc':^9} | {'Macro Precision':^15} | {'Macro Recall':^12} | {'Macro F1':^9}")
+    print(f"{'Epoch':^7} | {'Macro Precision':^15} | {'Macro Recall':^12} | {'Macro F1':^9}")
     print('-' * 70)
-    print(f"{epoch + 1:^7} | {tag_metrics['acc_macro']:^9.3%} | {tag_metrics['precision_macro']:^15.3%} |",
+    print(f"{epoch + 1:^7}  | {tag_metrics['precision_macro']:^15.3%} |",
           f"{tag_metrics['recall_macro']:^12.3%} | {tag_metrics['f1_macro']:^9.3%} ")
 
-    print(f"{'Epoch':^7} | {'Micro Acc':^9} | {'Micro Precision':^15} | {'Micro Recall':^12} | {'Micro F1':^9}")
+    print(f"{'Epoch':^7}  | {'Micro Precision':^15} | {'Micro Recall':^12} | {'Micro F1':^9}")
     print('-' * 70)
-    print(f"{epoch + 1:^7} | {tag_metrics['acc_micro']:^9.3%} | {tag_metrics['precision_micro']:^15.3%} |",
+    print(f"{epoch + 1:^7} | {tag_metrics['precision_micro']:^15.3%} |",
           f"{tag_metrics['recall_micro']:^12.3%} | {tag_metrics['f1_micro']:^9.3%} ")
     print("\n")
 
