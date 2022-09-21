@@ -38,7 +38,7 @@ def double_text(id_list, text_list1, text_list2, label_list, data_dir, output_fi
 def single_text_double_label(id_list, text_list, label1_list, label2_list, data_dir, output_file):
     Fmt = namedtuple('SingleText', ['id', 'text1', 'label', 'label2'])
 
-    with open(os.path.join(data_dir, output_file + '.txt'), 'w', encoding='urf-8') as f:
+    with open(os.path.join(data_dir, output_file + '.txt'), 'w', encoding='utf-8') as f:
         for i, t, l1, l2 in zip(id_list, text_list, label1_list, label2_list):
             f.write(json.dumps(Fmt(i, t, l1, l2)._asdict(), ensure_ascii=False) + '\n')
 
