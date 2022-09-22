@@ -4,14 +4,23 @@ from functools import partial
 import numpy as np
 import torch
 
+from collections import defaultdict
+
+
+def extract_entity(text, pos_list):
+    ent = defaultdict(set)
+    for pos in pos_list:
+        ent[pos[0]].add(text[pos[1]: pos[2]])
+    return ent
+
 
 def get_entity_bio(tags, idx2label):
     """
     Input:
         tags: list of labels [O,O,O, B-FIN, I-FIN, O,O, B-LOC,I-LOC]
     Return:
-        type of span with position
-        [['FIN',3,4], ['LOC',7,8]]
+        type of span with position, [left, right)
+        [['FIN',3,5], ['LOC',7,9]]
     """
     tags = [idx2label[i] for i in tags]
     span = []
@@ -22,10 +31,10 @@ def get_entity_bio(tags, idx2label):
             if pos[1] != -1:
                 span.append([type1] + pos)
             type1 = tag.split('-')[1]
-            pos = [i, i]
+            pos = [i, i + 1]
         elif 'I' in tag and pos[0] != -1:
             if tag.split('-')[1] == type1:
-                pos[1] = i
+                pos[1] = i + 1
         else:
             if type1:
                 span.append([type1] + pos)
@@ -41,7 +50,6 @@ def get_spans(tags, idx2label, schema):
         return get_entity_bio(tags, idx2label)
     else:
         raise ValueError('Only BIO tagging schema is supported now')
-
 
 
 class SpanMetricBase(object):
@@ -136,6 +144,16 @@ class SpanF1(SpanMetricBase):
 
     def get_detail(self):
         return self.class_info
+
+
+def pad_sequence(input_, pad_len=None, pad_value=0):
+    """
+    Pad List[List] sequence to same length
+    """
+    output = []
+    for i in input_:
+        output.append(i + [pad_value] * (pad_len - len(i)))
+    return output
 
 
 if __name__ == '__main__':

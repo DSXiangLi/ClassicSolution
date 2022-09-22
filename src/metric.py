@@ -2,7 +2,7 @@
 import torch
 import numpy as np
 from torchmetrics import Accuracy, AUROC, AveragePrecision, F1Score, Recall, Precision
-from src.custom_metric import SpanF1, SpanPrecision, SpanRecall
+from src.seqlabel_utils import SpanF1, SpanPrecision, SpanRecall
 from itertools import chain
 
 
@@ -131,7 +131,11 @@ def seq_tag_metrics(model, valid_loader, idx2label, schema, device):
         val_loss.append(loss.item())
         mask = features['attention_mask'].view(-1) == 1
         label_ids = features['label_ids'].view(-1)[mask].cpu().numpy()
-        preds = list(chain(*preds))
+        if isinstance(preds, torch.Tensor):
+            preds = preds.view(-1)[mask].cpu().numpy()
+        else:
+            #CRF Decode return list[list] with dynamic shape
+            preds = list(chain(*preds))
         for metric in metrics.values():
             metric.update(preds, label_ids)
 
