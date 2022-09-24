@@ -31,26 +31,26 @@ def classification_inference(model, data_loader, device):
     return output
 
 
-def seqlabel_inference(data_loader, model, device):
+def seqlabel_inference(model, data_loader, device):
     """
     Sequence Labeling Inference
         Return: preds list[list(real seq len)]
     """
-    model.eval() 
+    model.eval()
 
     all_preds = []
-    # for seqlbel predict is done on 
+    # for seqlbel predict is done on
     for batch in data_loader:
         # Load batch to GPU
         features = {k:v.to(device) for k,v in batch.items()}
         # Compute logits
         with torch.no_grad():
-            preds = model(features)[0]
-            mask = features['attention_mask'][0].bool()
-        # remove PAD & CLS & SEP: real sequence len 
-        preds = preds[0][mask][1:-1]
-        all_preds.append(preds.tolist())
-
+            logits = model(features)
+            preds = model.decode(features, logits)
+        if isinstance(preds, torch.Tensor):
+            preds = preds.cpu().numpy()
+        preds = [pred[1:] for pred in preds] # remove CLS
+        all_preds.extend(preds)
     return all_preds
 
 

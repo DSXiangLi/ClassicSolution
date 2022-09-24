@@ -8,8 +8,12 @@ from collections import defaultdict
 
 
 def extract_entity(text, pos_list):
+    l = len(text)
     ent = defaultdict(set)
     for pos in pos_list:
+        # allow pos list to be longer than text
+        if pos[1]>=l:
+            continue
         ent[pos[0]].add(text[pos[1]: pos[2]])
     return ent
 

@@ -134,7 +134,7 @@ def seq_tag_metrics(model, valid_loader, idx2label, schema, device):
         if isinstance(preds, torch.Tensor):
             preds = preds.view(-1)[mask].cpu().numpy()
         else:
-            #CRF Decode return list[list] with dynamic shape
+            # CRF decoder return List[List] with real seq len
             preds = list(chain(*preds))
         for metric in metrics.values():
             metric.update(preds, label_ids)
