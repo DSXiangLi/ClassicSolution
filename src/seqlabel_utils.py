@@ -18,7 +18,7 @@ def extract_entity(text, pos_list):
     return ent
 
 
-def get_entity_bio(tags, idx2label):
+def get_entity_bio(tags, idx2label=None):
     """
     Input:
         tags: list of labels [O,O,O, B-FIN, I-FIN, O,O, B-LOC,I-LOC]
@@ -26,7 +26,8 @@ def get_entity_bio(tags, idx2label):
         type of span with position, [left, right)
         [['FIN',3,5], ['LOC',7,9]]
     """
-    tags = [idx2label[i] for i in tags]
+    if idx2label is not None:
+        tags = [idx2label[i] for i in tags]
     span = []
     type1 = ''
     pos = [-1, -1]
