@@ -72,7 +72,7 @@ class SeqPairMtlDataset(Dataset):
         return len(self.features)
 
 
-class SeqLabelDataset(Dataset):
+class SeqLabelDataset():
     def __init__(self, data_loader, tokenizer, max_seq_len, label2idx):
         self.raw_data = data_loader()
         self.max_seq_len = max_seq_len
@@ -88,7 +88,7 @@ class SeqLabelDataset(Dataset):
             self.has_label = True
 
         for data in self.raw_data:
-            feature = self.tokenizer.encode_plus(' '.join(data['text1'].split()), padding='max_length',
+            feature = self.tokenizer.encode_plus(' '.join(data['text1']), padding='max_length',
                                                  is_split_into_words=True,  # split on white space
                                                  truncation=True, max_length=self.max_seq_len)
             self.features.append(feature)
@@ -96,6 +96,7 @@ class SeqLabelDataset(Dataset):
                 # set CLS, SEP, PAD to 'O' in label, so that they won't impact transition
                 label = [self.label2idx[i] for i in data['label'][:(self.max_seq_len - 2)]]
                 label = [self.label2idx['O']] + label + [self.label2idx['O']]
+                assert len(label) == sum(feature['attention_mask'])
                 label += [self.label2idx['O']] * (self.max_seq_len - len(label))
                 self.labels.append(label)
 
@@ -108,3 +109,4 @@ class SeqLabelDataset(Dataset):
 
     def __len__(self):
         return len(self.raw_data)
+
