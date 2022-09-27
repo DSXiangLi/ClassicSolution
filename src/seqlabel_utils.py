@@ -1,10 +1,42 @@
 # -*-coding:utf-8 -*-
+"""
+    序列标注，Span标注，全局指针的序列抽取问题都依赖 position list来完成实体到label的转换
+    pos_list [实体类别，左闭，右开]:[[LOC, 2,3], [PER, 3,5]]
+"""
 from collections import Counter
 from functools import partial
 import numpy as np
 import torch
 
 from collections import defaultdict
+
+
+def pos2bio(text, pos_list):
+    """
+    Input:
+        text: 文本
+        pos_list: [[FIN, 0,3], [LOC, 7,8]], position位置左闭右开
+    """
+    label = ['O'] * len(text)
+    for pos in pos_list:
+        label[pos[1]] = 'B-' + pos[0]
+        label[(pos[1] + 1):pos[2]] = ['I-' + pos[0]] * (pos[2] - pos[1] - 1)
+    return label
+
+
+def pos2span(text, pos_list, type2idx=None):
+    """
+    Input:
+        text: 文本
+        pos_list: [[FIN, 0,3], [LOC, 7,8]], position位置左闭右开
+        type2idx: {FIN:1, LOC:2, PER:3}
+    """
+    start_label = [0] * len(text)
+    end_label = [0] * len(text)
+    for pos in pos_list:
+        start_label[pos[1]] = type2idx[pos[0]]
+        end_label[pos[2] - 1] = type2idx[pos[0]]
+    return start_label, end_label
 
 
 def extract_entity(text, pos_list):
@@ -24,18 +56,17 @@ def get_entity_bio(tags, idx2label=None):
         tags: list of labels or label_ids [O,O,O, B-FIN, I-FIN, O,O, B-LOC,I-LOC],[0,0,0,1,2,0,0,3,4]
         idx2label： 如果为None，默认传入的是labels, 否则传入的是的label_ids
     Return:
-        type of span with position, [left, right)
-        [['FIN',3,5], ['LOC',7,9]]
+        pos list: [['FIN',3,5], ['LOC',7,9]]
     """
     if idx2label is not None:
         tags = [idx2label[i] for i in tags]
-    span = []
+    pos_list = []
     type1 = ''
     pos = [-1, -1]
     for i, tag in enumerate(tags):
         if 'B' in tag:
             if pos[1] != -1:
-                span.append([type1] + pos)
+                pos_list.append([type1] + pos)
             type1 = tag.split('-')[1]
             pos = [i, i + 1]
         elif 'I' in tag and pos[0] != -1:
@@ -43,12 +74,12 @@ def get_entity_bio(tags, idx2label=None):
                 pos[1] = i + 1
         else:
             if type1:
-                span.append([type1] + pos)
+                pos_list.append([type1] + pos)
                 type1 = ''
                 pos = [-1, -1]
     if type1:
-        span.append([type1] + pos)
-    return span
+        pos_list.append([type1] + pos)
+    return pos_list
 
 
 def get_entity_span(tags_pair, idx2label, max_span=20):
@@ -58,12 +89,11 @@ def get_entity_span(tags_pair, idx2label, max_span=20):
         idx2label: {1: 'LOC',2:'PER'}
         max_search: span的最大长度是20，
     Return:
-        type of span with position, [left, right)
-        [['FIN',3,5], ['LOC',7,9]]
+        pos list: [['FIN',3,5], ['LOC',7,9]]
     """
     start_pos = tags_pair[0]
     end_pos = tags_pair[1]
-    span = []
+    pos_list = []
     l = len(start_pos)
     for i, s in enumerate(start_pos):
         if s == 0:
@@ -72,9 +102,9 @@ def get_entity_span(tags_pair, idx2label, max_span=20):
             if j >= l:
                 break
             if end_pos[j] == s:
-                span.append([idx2label[s], i, j+1])
+                pos_list.append([idx2label[s], i, j + 1])
                 break
-    return span
+    return pos_list
 
 
 def get_spans(tags, idx2label, schema):
@@ -192,8 +222,6 @@ class SpanF1(SpanMetricBase):
         return self.class_info
 
 
-
-
 def pad_sequence(input_, pad_len=None, pad_value=0):
     """
     Pad List[List] sequence to same length
@@ -218,17 +246,16 @@ if __name__ == '__main__':
     print(get_entity_bio([0, 1, 4, 0], idx2label))
 
     ## Test Span
-    label2idx = {'O':0,'LOC':1,'PER':2,'FIN':3}
+    label2idx = {'O': 0, 'LOC': 1, 'PER': 2, 'FIN': 3}
     idx2label = {j: i for i, j in label2idx.items()}
-    print(get_entity_span([[0, 0,0,0],[0,0,0,0]], idx2label))
-    print(get_entity_span([[0,1,0,0],[0,1,0,0]], idx2label)) # 单字
-    print(get_entity_span([[0,1,0,0],[0,0,1,0]], idx2label)) # 双字
-    print(get_entity_span([[0,1,0,0],[0,0,1,1]], idx2label)) # 双字 + 无左边界
-    print(get_entity_span([[0,1,0,1],[0,0,1,0]], idx2label)) # 双字 + 无右边界
-    print(get_entity_span([[0,1,0,2],[0,0,1,2]], idx2label)) # 双类别
-    print(get_entity_span([[0,0,1,0],[0,1,0,0]], idx2label)) # 越界
-    print(get_entity_span([[0,1,0,2],[0,0,2,0]], idx2label)) # 不匹配
-
+    print(get_entity_span([[0, 0, 0, 0], [0, 0, 0, 0]], idx2label))
+    print(get_entity_span([[0, 1, 0, 0], [0, 1, 0, 0]], idx2label))  # 单字
+    print(get_entity_span([[0, 1, 0, 0], [0, 0, 1, 0]], idx2label))  # 双字
+    print(get_entity_span([[0, 1, 0, 0], [0, 0, 1, 1]], idx2label))  # 双字 + 无左边界
+    print(get_entity_span([[0, 1, 0, 1], [0, 0, 1, 0]], idx2label))  # 双字 + 无右边界
+    print(get_entity_span([[0, 1, 0, 2], [0, 0, 1, 2]], idx2label))  # 双类别
+    print(get_entity_span([[0, 0, 1, 0], [0, 1, 0, 0]], idx2label))  # 越界
+    print(get_entity_span([[0, 1, 0, 2], [0, 0, 2, 0]], idx2label))  # 不匹配
 
     ## Test BIO metrics
     metrics = {}
@@ -253,4 +280,3 @@ if __name__ == '__main__':
     multi_metrics = {key: metric.compute().item() for key, metric in metrics.items()}
     print(multi_metrics)
 
-    ## Test Span metrics
