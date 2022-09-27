@@ -9,7 +9,8 @@
  ![](https://files.mdnice.com/user/8955/092c5570-8f3b-429e-ac31-a1ad07b8292a.png)
 7. 请自行按链接下载数据到./iflytek_app/trainsample目录下
 8. 方案：基于脱敏文本训练char2vec，分词器Phraser和基于分词器的word2vec，第一次用pytorch基本是在搬运之前TF的代码，不排除bug良多哈哈~
-| 方案    |   | F1     |
+
+| 方案    |    F1     |
 | --- |  --- |
 |TextCNN+char2vec输入| 0.75292 |
 |Fasttext+char2vec输入|   0.75569 |
