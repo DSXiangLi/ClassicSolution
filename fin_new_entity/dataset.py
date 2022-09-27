@@ -42,7 +42,7 @@ class SeqLabelDataset():
 
 
 class SpanDataset():
-    def __init__(self, data_loader, tokenizer, max_seq_len):
+    def __init__(self, data_loader, max_seq_len, tokenizer):
         self.raw_data = data_loader()
         self.max_seq_len = max_seq_len
         self.tokenizer = tokenizer
@@ -68,15 +68,15 @@ class SpanDataset():
                 assert len(label_start) == sum(feature['attention_mask'])
                 assert len(label_end) == sum(feature['attention_mask'])
                 label_start += [0] * (self.max_seq_len - len(label_start))
-                label_end += [0] * (self.max_seq_len - len(label_end))
+                label_start += [0] * (self.max_seq_len - len(label_end))
                 self.labels.append({'label_start': label_start, 'label_end':label_end})
 
     def __getitem__(self, idx):
         sample = self.features[idx]
         sample = {k: torch.tensor(v) for k, v in sample.items()}
         if self.labels:
-            sample['label_start'] = torch.tensor(self.labels[idx]['label_start'])
-            sample['label_end'] = torch.tensor(self.labels[idx]['label_end'])
+            sample['label_start'] = self.labels[idx]['label_start']
+            sample['label_end'] = self.labels[idx]['label_end']
         return sample
 
     def __len__(self):

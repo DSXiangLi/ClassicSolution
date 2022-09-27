@@ -72,7 +72,7 @@ def get_entity_span(tags_pair, idx2label, max_span=20):
             if j >= l:
                 break
             if end_pos[j] == s:
-                span.append([idx2label[s], i, j])
+                span.append([idx2label[s], i, j+1])
                 break
     return span
 

@@ -2,8 +2,8 @@
 import torch
 import pandas as pd
 import numpy as np
-from sklearn.metrics import roc_auc_score, average_precision_score, precision_score, recall_score, accuracy_score,\
-classification_report
+from sklearn.metrics import roc_auc_score, average_precision_score, precision_score, recall_score, accuracy_score, \
+    classification_report
 from seqeval.metrics import classification_report as span_cls_report
 from itertools import chain
 
@@ -15,11 +15,11 @@ def classification_inference(model, data_loader, device):
     all_probs = []
     for batch in data_loader:
         # Load batch to GPU
-        inputs = {k: v.to(device) for k,v in batch.items()}
+        inputs = {k: v.to(device) for k, v in batch.items()}
 
         # Compute logits
         with torch.no_grad():
-            logits = model(inputs) # ignore label for test
+            logits = model(inputs)  # ignore label for test
             probs = torch.nn.functional.softmax(logits, dim=-1).cpu().numpy()
         all_preds += np.argmax(probs, axis=-1).tolist()
         all_probs += probs.tolist()
@@ -42,16 +42,41 @@ def seqlabel_inference(model, data_loader, device):
     # for seqlbel predict is done on
     for batch in data_loader:
         # Load batch to GPU
-        features = {k:v.to(device) for k,v in batch.items()}
+        features = {k: v.to(device) for k, v in batch.items()}
         # Compute logits
         with torch.no_grad():
             logits = model(features)
             preds = model.decode(features, logits)
         if isinstance(preds, torch.Tensor):
             preds = preds.cpu().numpy()
-        preds = [pred[1:] for pred in preds] # remove CLS
+        preds = [pred[1:] for pred in preds]  # remove CLS
         all_preds.extend(preds)
     return all_preds
+
+
+def span_inference(model, data_loader, device):
+    """
+    Sequence Labeling Inference
+        Return: preds list[list(real seq len)]
+    """
+    model.eval()
+
+    start_pred = []
+    end_pred = []
+    # for seqlbel predict is done on
+    for batch in data_loader:
+        # Load batch to GPU
+        features = {k: v.to(device) for k, v in batch.items()}
+        # Compute logits
+        with torch.no_grad():
+            logits = model(features)
+            preds = model.decode(features, logits)
+            pred1, pred2 = preds[0].cpu().numpy(), preds[1].cpu().numpy()
+            pred1 = [i[1:] for i in pred1]
+            pred2 = [i[1:] for i in pred2]
+        start_pred.extend(pred1)
+        end_pred.extend(pred2)
+    return start_pred, end_pred
 
 
 def binary_cls_report(probs, labels, thresholds):
@@ -75,11 +100,12 @@ def binary_cls_report(probs, labels, thresholds):
         accuracy = accuracy_score(labels, tmp)
         result.append((thr, sum(tmp), precision, recall, accuracy, auc, ap, n_sample, n_pos))
 
-    df = pd.DataFrame(result, columns=['threshold', 'n', 'precision', 'recall', 'accuracy', 'auc', 'ap','total','total_pos'])
+    df = pd.DataFrame(result,
+                      columns=['threshold', 'n', 'precision', 'recall', 'accuracy', 'auc', 'ap', 'total', 'total_pos'])
     df = df.to_string(formatters={'threhsold': "{:.2f}".format,
                                   'n': "{0:d}".format, 'precision': "{:.1%}".format,
                                   'recall': "{:.1%}".format, 'accuracy': "{:.1%}".format,
-                                  'auc': "{:.1%}".format,'ap': "{:.1%}".format,
+                                  'auc': "{:.1%}".format, 'ap': "{:.1%}".format,
                                   'total': '{0:d}'.format, 'total_pos': '{0:d}'.format
                                   })
     return df
@@ -111,14 +137,14 @@ def seqlabel_report(preds, labels, idx2label):
     """
     preds = list(chain(*preds))
     labels = list(chain(*labels))
-    
+
     tag_report = classification_report(labels, preds, target_names=idx2label.values())
     labels = [idx2label[i] for i in labels]
     preds = [idx2label[i] for i in preds]
     span_report = span_cls_report([labels], [preds], digits=3)
-    
-    text = '='*20 + 'Tag level report' + '='*20 + '\n\n'
+
+    text = '=' * 20 + 'Tag level report' + '=' * 20 + '\n\n'
     text += tag_report + '\n\n'
-    text += '='*20 + 'Span level report' + '='*20 + '\n\n'
+    text += '=' * 20 + 'Span level report' + '=' * 20 + '\n\n'
     text += span_report
     return text
