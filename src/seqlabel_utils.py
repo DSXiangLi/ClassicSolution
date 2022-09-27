@@ -12,7 +12,7 @@ def extract_entity(text, pos_list):
     ent = defaultdict(set)
     for pos in pos_list:
         # allow pos list to be longer than text
-        if pos[1]>=l:
+        if pos[1] >= l:
             continue
         ent[pos[0]].add(text[pos[1]: pos[2]])
     return ent
@@ -21,7 +21,8 @@ def extract_entity(text, pos_list):
 def get_entity_bio(tags, idx2label=None):
     """
     Input:
-        tags: list of labels [O,O,O, B-FIN, I-FIN, O,O, B-LOC,I-LOC]
+        tags: list of labels or label_ids [O,O,O, B-FIN, I-FIN, O,O, B-LOC,I-LOC],[0,0,0,1,2,0,0,3,4]
+        idx2label： 如果为None，默认传入的是labels, 否则传入的是的label_ids
     Return:
         type of span with position, [left, right)
         [['FIN',3,5], ['LOC',7,9]]
@@ -50,9 +51,37 @@ def get_entity_bio(tags, idx2label=None):
     return span
 
 
+def get_entity_span(tags_pair, idx2label, max_span=20):
+    """
+    Input:
+        tags_pair: [pos_start_list, pos_end_list]
+        idx2label: {1: 'LOC',2:'PER'}
+        max_search: span的最大长度是20，
+    Return:
+        type of span with position, [left, right)
+        [['FIN',3,5], ['LOC',7,9]]
+    """
+    start_pos = tags_pair[0]
+    end_pos = tags_pair[1]
+    span = []
+    l = len(start_pos)
+    for i, s in enumerate(start_pos):
+        if s == 0:
+            continue
+        for j in range(i, i + max_span):
+            if j >= l:
+                break
+            if end_pos[j] == s:
+                span.append([idx2label[s], i, j])
+                break
+    return span
+
+
 def get_spans(tags, idx2label, schema):
     if schema == 'BIO':
         return get_entity_bio(tags, idx2label)
+    elif schema == 'span':
+        return get_entity_span(tags, idx2label)
     else:
         raise ValueError('Only BIO tagging schema is supported now')
 
@@ -94,7 +123,10 @@ class SpanPrecision(SpanMetricBase):
         for key, val in pred_counter.items():
             self.class_info[key] = right_counter.get(key, 0) / pred_counter[key]
         if self.avg == 'micro':
-            precision = len(self.right_span) / len(self.pred_span)
+            try:
+                precision = len(self.right_span) / len(self.pred_span)
+            except ZeroDivisionError:
+                precision = 0.0
         else:
             precision = np.mean(list(self.class_info.values()))
         return torch.tensor(precision)
@@ -110,7 +142,10 @@ class SpanRecall(SpanMetricBase):
         for key, val in true_counter.items():
             self.class_info[key] = right_counter.get(key, 0) / true_counter[key]
         if self.avg == 'micro':
-            recall = len(self.right_span) / len(self.true_span)
+            try:
+                recall = len(self.right_span) / len(self.true_span)
+            except ZeroDivisionError:
+                recall = 0.0
         else:
             recall = np.mean(list(self.class_info.values()))
         return torch.tensor(recall)
@@ -140,8 +175,14 @@ class SpanF1(SpanMetricBase):
             self.class_info[key] = self.f1_score(precision, recall)
 
         if self.avg == 'micro':
-            recall = len(self.right_span) / len(self.true_span)
-            precision = len(self.right_span) / len(self.pred_span)
+            try:
+                recall = len(self.right_span) / len(self.true_span)
+            except ZeroDivisionError:
+                recall = 0.0
+            try:
+                precision = len(self.right_span) / len(self.pred_span)
+            except ZeroDivisionError:
+                precision = 0.0
             f1 = self.f1_score(precision, recall)
         else:
             f1 = np.mean(list(self.class_info.values()))
@@ -149,6 +190,8 @@ class SpanF1(SpanMetricBase):
 
     def get_detail(self):
         return self.class_info
+
+
 
 
 def pad_sequence(input_, pad_len=None, pad_value=0):
@@ -162,6 +205,7 @@ def pad_sequence(input_, pad_len=None, pad_value=0):
 
 
 if __name__ == '__main__':
+    ## Test BIO
     label2idx = {'O': 0, 'B-LOC': 1, 'I-LOC': 2, 'B-PER': 3, 'I-PER': 4}
     idx2label = {j: i for i, j in label2idx.items()}
     print(get_entity_bio([0, 1, 2, 2], idx2label))
@@ -173,6 +217,20 @@ if __name__ == '__main__':
     print(get_entity_bio([0, 2, 2, 0], idx2label))
     print(get_entity_bio([0, 1, 4, 0], idx2label))
 
+    ## Test Span
+    label2idx = {'O':0,'LOC':1,'PER':2,'FIN':3}
+    idx2label = {j: i for i, j in label2idx.items()}
+    print(get_entity_span([[0, 0,0,0],[0,0,0,0]], idx2label))
+    print(get_entity_span([[0,1,0,0],[0,1,0,0]], idx2label)) # 单字
+    print(get_entity_span([[0,1,0,0],[0,0,1,0]], idx2label)) # 双字
+    print(get_entity_span([[0,1,0,0],[0,0,1,1]], idx2label)) # 双字 + 无左边界
+    print(get_entity_span([[0,1,0,1],[0,0,1,0]], idx2label)) # 双字 + 无右边界
+    print(get_entity_span([[0,1,0,2],[0,0,1,2]], idx2label)) # 双类别
+    print(get_entity_span([[0,0,1,0],[0,1,0,0]], idx2label)) # 越界
+    print(get_entity_span([[0,1,0,2],[0,0,2,0]], idx2label)) # 不匹配
+
+
+    ## Test BIO metrics
     metrics = {}
     for avg in ['micro', 'macro']:
         metrics.update({
@@ -194,3 +252,5 @@ if __name__ == '__main__':
         metric.update(preds, label_ids)
     multi_metrics = {key: metric.compute().item() for key, metric in metrics.items()}
     print(multi_metrics)
+
+    ## Test Span metrics

@@ -144,6 +144,48 @@ def seq_tag_metrics(model, valid_loader, idx2label, schema, device):
     return multi_metrics
 
 
+def seq_span_metrics(model, valid_loader, idx2label, device):
+    """
+    Sequence Labelling task seq level metircs, supported
+    - Macro/micro average
+    - F1, precision, recall
+    - Accuracy
+    - loss
+    """
+    model.eval()
+
+    # Tracking variables
+    metrics = {}
+    for avg in ['micro', 'macro']:
+        metrics.update({
+            f'f1_{avg}': SpanF1(idx2label=idx2label, schema='span', avg=avg),
+            f'recall_{avg}': SpanRecall(idx2label=idx2label, schema='span', avg=avg),
+            f'precision_{avg}': SpanPrecision(idx2label=idx2label, schema='span', avg=avg)
+        })
+    val_loss = []
+
+    for batch in valid_loader:
+        features = {k: v.to(device) for k, v in batch.items()}
+
+        with torch.no_grad():
+            logits = model(features)
+            loss = model.compute_loss(features, logits)
+            start_pred, end_pred = model.decode(features, logits)
+
+        val_loss.append(loss.item())
+        mask = features['attention_mask'].view(-1) == 1
+        start_label = features['label_start'].view(-1)[mask].cpu().numpy()
+        end_label = features['label_end'].view(-1)[mask].cpu().numpy()
+        start_pred = start_pred.view(-1)[mask].cpu().numpy()
+        end_pred = end_pred.view(-1)[mask].cpu().numpy()
+        for metric in metrics.values():
+            metric.update((start_pred, end_pred), (start_label, end_label))
+
+    multi_metrics = {key: metric.compute().item() for key, metric in metrics.items()}
+    multi_metrics['val_loss'] = np.mean(val_loss)
+    return multi_metrics
+
+
 def tag_cls_log(epoch, tag_metrics):
     print("\n")
     print(f"{'Epoch':^7} | {'Macro Precision':^15} | {'Macro Recall':^12} | {'Macro F1':^9}")
