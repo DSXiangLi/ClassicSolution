@@ -1,7 +1,7 @@
 # -*-coding:utf-8 -*-
 """
     序列标注，Span标注，全局指针的序列抽取问题都依赖 position list来完成实体到label的转换
-    pos_list [实体类别，左闭，右开]:[[LOC, 2,3], [PER, 3,5]]
+    pos_list [实体类别，左闭，右闭]:[[LOC, 2,3], [PER, 3,5]]
 """
 from collections import Counter
 from functools import partial
@@ -15,12 +15,12 @@ def pos2bio(text, pos_list):
     """
     Input:
         text: 文本
-        pos_list: [[FIN, 0,3], [LOC, 7,8]], position位置左闭右开
+        pos_list: [[FIN, 0,3], [LOC, 7,8]]
     """
     label = ['O'] * len(text)
     for pos in pos_list:
         label[pos[1]] = 'B-' + pos[0]
-        label[(pos[1] + 1):pos[2]] = ['I-' + pos[0]] * (pos[2] - pos[1] - 1)
+        label[(pos[1] + 1):(pos[2]+1)] = ['I-' + pos[0]] * (pos[2] - pos[1])
     return label
 
 
@@ -28,14 +28,14 @@ def pos2span(text, pos_list, type2idx=None):
     """
     Input:
         text: 文本
-        pos_list: [[FIN, 0,3], [LOC, 7,8]], position位置左闭右开
+        pos_list: [[FIN, 0,3], [LOC, 7,8]]
         type2idx: {FIN:1, LOC:2, PER:3}
     """
     start_label = [0] * len(text)
     end_label = [0] * len(text)
     for pos in pos_list:
         start_label[pos[1]] = type2idx[pos[0]]
-        end_label[pos[2] - 1] = type2idx[pos[0]]
+        end_label[pos[2]] = type2idx[pos[0]]
     return start_label, end_label
 
 
@@ -46,7 +46,7 @@ def extract_entity(text, pos_list):
         # allow pos list to be longer than text
         if pos[1] >= l:
             continue
-        ent[pos[0]].add(text[pos[1]: pos[2]])
+        ent[pos[0]].add(text[pos[1]: (pos[2]+1)])
     return ent
 
 
@@ -68,10 +68,10 @@ def get_entity_bio(tags, idx2label=None):
             if pos[1] != -1:
                 pos_list.append([type1] + pos)
             type1 = tag.split('-')[1]
-            pos = [i, i + 1]
+            pos = [i, i]
         elif 'I' in tag and pos[0] != -1:
             if tag.split('-')[1] == type1:
-                pos[1] = i + 1
+                pos[1] = i
         else:
             if type1:
                 pos_list.append([type1] + pos)
@@ -102,7 +102,7 @@ def get_entity_span(tags_pair, idx2label, max_span=20):
             if j >= l:
                 break
             if end_pos[j] == s:
-                pos_list.append([idx2label[s], i, j + 1])
+                pos_list.append([idx2label[s], i, j])
                 break
     return pos_list
 

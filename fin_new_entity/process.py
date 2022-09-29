@@ -114,7 +114,8 @@ def find_ent_pos(text, entities):
         try:
             ent = ent.replace('(', '\(').replace(')', '\)')
             for pos in re.finditer(ent, text):
-                pos_list.append(['FIN'] + list(pos.span()))
+                pos = list(pos.span()) # 改成左闭右闭的
+                pos_list.append(['FIN'] + [pos[0],pos[1]-1])
         except Exception as e:
             print(e, entities)
     return pos_list
