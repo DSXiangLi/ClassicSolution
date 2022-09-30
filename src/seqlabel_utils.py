@@ -20,16 +20,16 @@ def pos2bio(text, pos_list):
     label = ['O'] * len(text)
     for pos in pos_list:
         label[pos[1]] = 'B-' + pos[0]
-        label[(pos[1] + 1):(pos[2]+1)] = ['I-' + pos[0]] * (pos[2] - pos[1])
+        label[(pos[1] + 1):(pos[2] + 1)] = ['I-' + pos[0]] * (pos[2] - pos[1])
     return label
 
 
-def pos2span(text, pos_list, type2idx=None):
+def pos2span(text, pos_list, type2idx):
     """
     Input:
         text: 文本
         pos_list: [[FIN, 0,3], [LOC, 7,8]]
-        type2idx: {FIN:1, LOC:2, PER:3}
+        type2idx: {FIN:1, LOC:2, PER:3} id start from 1
     """
     start_label = [0] * len(text)
     end_label = [0] * len(text)
@@ -39,6 +39,19 @@ def pos2span(text, pos_list, type2idx=None):
     return start_label, end_label
 
 
+def pos2pointer(pos_list, type2idx):
+    """
+    Input:
+        text: 文本
+        pos_list: [[FIN, 0,3], [LOC, 7,8]]
+        type2idx: {FIN:0, LOC:1, PER:2} id start from 0
+    """
+    label = []
+    for pos in pos_list:
+        label.append([type2idx[pos[0]], pos[1], pos[2]])
+    return label
+
+
 def extract_entity(text, pos_list):
     l = len(text)
     ent = defaultdict(set)
@@ -46,14 +59,14 @@ def extract_entity(text, pos_list):
         # allow pos list to be longer than text
         if pos[1] >= l:
             continue
-        ent[pos[0]].add(text[pos[1]: (pos[2]+1)])
+        ent[pos[0]].add(text[pos[1]: (pos[2] + 1)])
     return ent
 
 
 def get_entity_bio(tags, idx2label=None):
     """
     Input:
-        tags: list of labels or label_ids [O,O,O, B-FIN, I-FIN, O,O, B-LOC,I-LOC],[0,0,0,1,2,0,0,3,4]
+        tags: list of labels or label_ids [O,O,O, B-FIN, I-FIN, O,O, B-LOC,I-LOC],[0,0,0,1,2,0,0,3,4], where CLS is removed
         idx2label： 如果为None，默认传入的是labels, 否则传入的是的label_ids
     Return:
         pos list: [['FIN',3,5], ['LOC',7,9]]
@@ -85,7 +98,7 @@ def get_entity_bio(tags, idx2label=None):
 def get_entity_span(tags_pair, idx2label, max_span=20):
     """
     Input:
-        tags_pair: [pos_start_list, pos_end_list]
+        tags_pair: [pos_start_list, pos_end_list], where CLS is removed
         idx2label: {1: 'LOC',2:'PER'}
         max_search: span的最大长度是20，
     Return:
@@ -107,11 +120,30 @@ def get_entity_span(tags_pair, idx2label, max_span=20):
     return pos_list
 
 
+def get_entity_pointer(tags_matrix, idx2label):
+    """
+    Input:
+        tags_matrix: (i,j) =id， id类型[i,j]之间维实体, where CLS isremoved
+        idx2label: {1: 'LOC',2:'PER'}
+    Return:
+        pos list: [['FIN',3,5], ['LOC',7,9]]
+    """
+    l = len(tags_matrix)
+    pos_list = []
+    for i in range(l):
+        for j in range(i, l):
+            if tags_matrix[i][j] != 0:
+                pos_list.append([idx2label[tags_matrix[i][j]], i, j])
+    return pos_list
+
+
 def get_spans(tags, idx2label, schema):
     if schema == 'BIO':
         return get_entity_bio(tags, idx2label)
     elif schema == 'span':
         return get_entity_span(tags, idx2label)
+    elif schema == 'pointer':
+        return get_entity_pointer(tags, idx2label)
     else:
         raise ValueError('Only BIO tagging schema is supported now')
 
@@ -279,4 +311,3 @@ if __name__ == '__main__':
         metric.update(preds, label_ids)
     multi_metrics = {key: metric.compute().item() for key, metric in metrics.items()}
     print(multi_metrics)
-
