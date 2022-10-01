@@ -39,7 +39,7 @@ class BertSpan(nn.Module):
         if start_pos is not None and self.training:
             # Training Stage: use input pos as soft label
             batch_size, seq_len = start_pos.shape
-            start_soft_label = torch.zeros(batch_size, seq_len, self.tp.label_size, device=feature['input_ids'].device)
+            start_soft_label = torch.zeros(batch_size, seq_len, self.tp.label_size, device=features['input_ids'].device)
             start_soft_label.scatter_(2, start_pos.unsqueeze(2),1)
         else:
             # Inference Stage: use prediction as soft label

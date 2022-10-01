@@ -1,6 +1,7 @@
 # -*-coding:utf-8 -*-
 import torch
 from torch import nn
+import torch.nn.functional as F
 from transformers import BertModel
 from src.layers.crf import CRF
 from transformers import AdamW, get_linear_schedule_with_warmup
@@ -100,13 +101,6 @@ class BertCrf(nn.Module):
         return optimizer, scheduler
 
 
-import torch
-from torch import nn
-import torch.nn.functional as F
-from transformers import BertModel
-from src.loss import seqlabel_loss_wrapper
-from transformers import AdamW, get_linear_schedule_with_warmup
-
 
 class BertSpan(nn.Module):
     def __init__(self, tp):
@@ -119,7 +113,7 @@ class BertSpan(nn.Module):
         self.start_classifier = nn.Linear(self.bert.config.hidden_size, tp.label_size)
         # end classifier : use start output and bert output
         self.end_classifier = nn.Sequential(
-            nn.Linear(self.bert.config.hidden_size + tp.label_size, self.tp.hidden_size),
+            nn.Linear(self.bert.config.hidden_size+tp.label_size, self.tp.hidden_size),
             nn.Tanh(),
             nn.LayerNorm(self.tp.hidden_size),
             nn.Linear(self.tp.hidden_size, self.tp.label_size)
@@ -140,8 +134,8 @@ class BertSpan(nn.Module):
         if start_pos is not None and self.training:
             # Training Stage: use input pos as soft label
             batch_size, seq_len = start_pos.shape
-            start_soft_label = torch.zeros(batch_size, seq_len, self.tp.label_size, device=feature['input_ids'].device)
-            start_soft_label.scatter_(2, start_pos.unsqueeze(2), 1)
+            start_soft_label = torch.zeros(batch_size, seq_len, self.tp.label_size, device=features['input_ids'].device)
+            start_soft_label.scatter_(2, start_pos.unsqueeze(2),1)
         else:
             # Inference Stage: use prediction as soft label
             start_soft_label = F.softmax(logits_start, dim=-1)
@@ -151,7 +145,7 @@ class BertSpan(nn.Module):
     def compute_loss(self, features, logits_pair):
         loss1 = seqlabel_loss_wrapper(logits_pair[0], features['label_start'], features['attention_mask'], self.loss_fn)
         loss2 = seqlabel_loss_wrapper(logits_pair[1], features['label_end'], features['attention_mask'], self.loss_fn)
-        loss = loss1 + loss2
+        loss = loss1+loss2
         return loss
 
     def decode(self, features, logits_pair):
