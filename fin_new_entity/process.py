@@ -114,8 +114,8 @@ def find_ent_pos(text, entities):
         try:
             ent = ent.replace('(', '\(').replace(')', '\)')
             for pos in re.finditer(ent, text):
-                pos = list(pos.span()) # 改成左闭右闭的
-                pos_list.append(['FIN'] + [pos[0],pos[1]-1])
+                pos = list(pos.span())  # 改成左闭右闭的
+                pos_list.append(['FIN'] + [pos[0], pos[1] - 1])
         except Exception as e:
             print(e, entities)
     return pos_list
@@ -164,55 +164,94 @@ def text_preprocess(s, useless_chars):
     return s
 
 
-def hierarchy_text_split(text):
-    sentences = []
-    tmp = []
-    # 优先使用句子分割
-    for s in text:
-        tmp.append(s)
-        if s in {'。', '！', '!', '？', '?'}:
-            sentences.append(''.join(tmp))
-            tmp = []
-    # 如果没有则使用逗号分隔
-    if len(sentences) <= 1:
-        sentences = []
-        tmp = []
-        for s in text:
-            tmp.append(s)
-            if s in {',', '，'}:
-                sentences.append(''.join(tmp))
-                tmp = []
-    if len(tmp) > 0:
-        sentences.append(''.join(tmp))
-    return sentences
-
-
 def split_text(title, text, max_seq_len):
     """
     text按标点符号超过长度后进行split，
     """
     ## 满足长度的直接返回
     if not title or title in text:
-        seq_len = max_seq_len
         title = ''
-        if len(text) < seq_len:
+        if len(text) <= max_seq_len:
             return [text]
     else:
-        seq_len = max_seq_len - len(title)
-        if len(text) < seq_len:
+        if len(text) + len(title) <= max_seq_len:
             return [title + text]
     ## 不满足长度的按句子进行拆分后得到多段文本
-    sentences = hierarchy_text_split(text)
+    sentences = hierarchy_text_split(text, max_seq_len)
     corpus = []
     tmp = title
     for i in range(len(sentences)):
-        if len(tmp) + len(sentences[i]) > seq_len:
+        if len(tmp) <= max_seq_len and len(tmp) + len(sentences[i]) > max_seq_len:
             corpus.append(tmp.strip())
-            tmp = ''
-        tmp += sentences[i]
+            tmp = sentences[i]
+        else:
+            tmp += sentences[i]
     if tmp:
         corpus.append(tmp.strip())
     return corpus
+
+
+def hierarchy_text_split(text, max_seq_len):
+    sentences = []
+    tmp = []
+    # 优先使用句子分割
+    for s in text:
+        tmp.append(s)
+        if s in {'。', '！', '!', '？', '?'}:
+            if len(tmp) <= max_seq_len:
+                sentences.append(''.join(tmp))
+            else:
+                new_sentences = []
+                new_tmp = []
+                for ss in tmp:
+                    new_tmp.append(ss)
+                    if ss in {',', '，', ':', '：'}:
+                        l = len(new_tmp)
+                        if l > max_seq_len:
+                            # 存在少量样本中间无分隔符
+                            new_sentences.append(''.join(new_tmp[:l // 2]))
+                            new_sentences.append(''.join(new_tmp[(l // 2):]))
+                        else:
+                            new_sentences.append(''.join(new_tmp))
+                        new_tmp = []
+                if new_tmp:
+                    l = len(new_tmp)
+                    if l > max_seq_len:
+                        # 存在少量样本中间无分隔符
+                        new_sentences.append(''.join(new_tmp[:l // 2]))
+                        new_sentences.append(''.join(new_tmp[(l // 2):]))
+                    else:
+                        new_sentences.append(''.join(new_tmp))
+                sentences += new_sentences
+            tmp = []
+
+    if len(tmp) > 0:
+        if len(tmp) <= max_seq_len:
+            sentences.append(''.join(tmp))
+        else:
+            new_sentences = []
+            new_tmp = []
+            for ss in tmp:
+                new_tmp.append(ss)
+                if ss in {',', '，', ':', '：', ')', '）'}:
+                    l = len(new_tmp)
+                    if l > max_seq_len:
+                        # 存在少量样本中间无分隔符
+                        new_sentences.append(''.join(new_tmp[:l // 2]))
+                        new_sentences.append(''.join(new_tmp[(l // 2):]))
+                    else:
+                        new_sentences.append(''.join(new_tmp))
+                    new_tmp = []
+            if new_tmp:
+                l = len(new_tmp)
+                if l > max_seq_len:
+                    # 存在少量样本中间无分隔符
+                    new_sentences.append(''.join(new_tmp[:l // 2]))
+                    new_sentences.append(''.join(new_tmp[(l // 2):]))
+                else:
+                    new_sentences.append(''.join(new_tmp))
+            sentences += new_sentences
+    return sentences
 
 
 def data_process(file_name='./trainsample/Train_Data.csv'):
@@ -252,6 +291,6 @@ def data_process(file_name='./trainsample/Train_Data.csv'):
 
 
 if __name__ == '__main__':
-    print(hierarchy_text_split('今天,天气正好。'))
-    print(hierarchy_text_split('今天，天气，正好'))
-    print(hierarchy_text_split('今天,天气正好!特别好呀，特别好。'))
+    print(hierarchy_text_split('今天,天气正好。', 4))
+    print(hierarchy_text_split('今天，天气，正好', 6))
+    print(hierarchy_text_split('今天,天气正好!特别好呀，特别好。', 8))
