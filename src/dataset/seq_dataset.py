@@ -108,7 +108,7 @@ class SeqLabelDataset():
         sample = self.features[idx]
         sample = {k: torch.tensor(v) for k, v in sample.items()}
         if self.labels:
-            sample['label_ids'] = torch.tensor(self.labels[idx])
+            sample['label_ids'] = torch.tensor(self.labels[idx], dtype=torch.int32)
         return sample
 
     def __len__(self):
@@ -149,8 +149,8 @@ class SpanDataset():
         sample = self.features[idx]
         sample = {k: torch.tensor(v) for k, v in sample.items()}
         if self.labels:
-            sample['label_start'] = torch.tensor(self.labels[idx]['label_start'])
-            sample['label_end'] = torch.tensor(self.labels[idx]['label_end'])
+            sample['label_start'] = torch.tensor(self.labels[idx]['label_start'], dtype=torch.int32)
+            sample['label_end'] = torch.tensor(self.labels[idx]['label_end'], dtype=torch.int32)
         return sample
 
     def __len__(self):
@@ -190,8 +190,9 @@ class GlobalPointerDataset():
         sample = self.features[idx]
         sample = {k: torch.tensor(v) for k, v in sample.items()}
         if self.labels:
-            sample['label_matrix'] = torch.tensor(self.labels[idx])
+            sample['label_ids'] = torch.tensor(self.labels[idx], dtype=torch.int32)
         return sample
 
     def __len__(self):
         return len(self.features)
+

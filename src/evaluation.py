@@ -33,11 +33,10 @@ def classification_inference(model, data_loader, device):
 
 def seqlabel_inference(model, data_loader, device):
     """
-    Sequence Labeling Inference
-        Return: preds list[list(real seq len)]
+    Sequence Labeling Inference BIO
+        Return: preds list[list(real seq len/max_seq_len)]
     """
     model.eval()
-
     all_preds = []
     # for seqlbel predict is done on
     for batch in data_loader:
@@ -48,6 +47,7 @@ def seqlabel_inference(model, data_loader, device):
             logits = model(features)
             preds = model.decode(features, logits)
         if isinstance(preds, torch.Tensor):
+            # for CRF decoder, List[List] of dynamic shape is returned
             preds = preds.cpu().numpy()
         preds = [pred[1:] for pred in preds]  # remove CLS
         all_preds.extend(preds)
@@ -56,11 +56,10 @@ def seqlabel_inference(model, data_loader, device):
 
 def span_inference(model, data_loader, device):
     """
-    Sequence Labeling Inference
-        Return: preds list[list(real seq len)]
+    Span Tagging with start and end pos Inference
+        Return: preds list[list(max_seq_len)]
     """
     model.eval()
-
     start_pred = []
     end_pred = []
     # for seqlbel predict is done on
@@ -72,11 +71,35 @@ def span_inference(model, data_loader, device):
             logits = model(features)
             preds = model.decode(features, logits)
             pred1, pred2 = preds[0].cpu().numpy(), preds[1].cpu().numpy()
+            # remove CLS at the beginning
             pred1 = [i[1:] for i in pred1]
             pred2 = [i[1:] for i in pred2]
         start_pred.extend(pred1)
         end_pred.extend(pred2)
-    return start_pred, end_pred
+    pred = list(zip(start_pred, end_pred))
+    return pred
+
+
+def pointer_inference(model, data_loader, device):
+    """
+    Global Pointer with multi head inference
+        Return: preds list[list(max_seq_len)]
+    """
+    model.eval()
+    all_preds= []
+    # for seqlbel predict is done on
+    for batch in data_loader:
+        # Load batch to GPU
+        features = {k: v.to(device) for k, v in batch.items()}
+        # Compute logits
+        with torch.no_grad():
+            logits = model(features)
+            preds = model.decode(features, logits).cpu().numpy()
+            # remove CLS at the beginning of matrix
+            pred = [head[...,1:,1:] for head in preds]
+        all_preds.extend(pred)
+    return all_preds
+
 
 
 def binary_cls_report(probs, labels, thresholds):
@@ -131,7 +154,7 @@ def multi_cls_report(probs, labels, idx2label):
 def seqlabel_report(preds, labels, idx2label):
     """
     Sequence Label task evalutaion 
-    preds: list[list(real seq len)] sequence label prediction 
+    preds: list[[0,0,1,2,0,0,]] sequence label prediction
     labels: list[list(real seq len)]
     idx2label: label_id. to label_name mapping
     """

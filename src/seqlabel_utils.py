@@ -120,20 +120,22 @@ def get_entity_span(tags_pair, idx2label, max_span=20):
     return pos_list
 
 
-def get_entity_pointer(tags_matrix, idx2label):
+def get_entity_pointer(tags_matrix, idx2label, max_span=20):
     """
     Input:
-        tags_matrix: (i,j) =id， id类型[i,j]之间维实体, where CLS isremoved
-        idx2label: {1: 'LOC',2:'PER'}
+        tags_matrix: [batch_size, num_head, seq_len, seq_len] 或者 [num_head, seq_len, seq_len]
+        idx2label: {0: 'LOC',2:'PER'}, where id starts from zero
     Return:
         pos list: [['FIN',3,5], ['LOC',7,9]]
     """
-    l = len(tags_matrix)
+    if len(tags_matrix.shape) == 3:
+        tags_matrix = np.expand_dims(tags_matrix, axis=0)
+
     pos_list = []
-    for i in range(l):
-        for j in range(i, l):
-            if tags_matrix[i][j] != 0:
-                pos_list.append([idx2label[tags_matrix[i][j]], i, j])
+
+    for _, k, i, j in zip(*np.where(tags_matrix == 1)):
+        pos_list.append([idx2label[k], i, j])
+
     return pos_list
 
 
@@ -159,12 +161,6 @@ class SpanMetricBase(object):
         self.class_info = {}
 
     def update(self, pred_ids, label_ids):
-        '''
-        Input: list of label_ids and pred_ids with real seq length
-            labels_ids_list = [['O','B-FIN', 'I-FIN', 'O'], ['B-LOC', 'I-LOC', 'O']]
-            pred_ids_list  = [['O','B-FIN', 'I-FIN', 'O'], ['B-LOC', 'I-LOC', 'O']]
-        '''
-
         label_spans = self.get_spans(label_ids)
         pred_spans = self.get_spans(pred_ids)
         self.true_span.extend(label_spans)
@@ -254,6 +250,59 @@ class SpanF1(SpanMetricBase):
         return self.class_info
 
 
+class PointerMetricBase(object):
+    def __init__(self, head_size, device, avg='micro'):
+        self.avg = avg
+        self.tp = torch.zeros(head_size, device=device) + 1e-10
+        self.true = torch.zeros(head_size, device=device) + 1e-10
+        self.pred = torch.zeros(head_size, device=device) + 1e-10
+
+    def update(self, pred_matrix, label_matrix):
+        # matrix: [batch_size, head_size, seq_len, seq_len]
+        self.tp += torch.sum(pred_matrix * label_matrix, dim=[0, 2, 3])
+        self.true += torch.sum(label_matrix, dim=[0, 2, 3])
+        self.pred += torch.sum(pred_matrix, dim=[0, 2, 3])
+
+
+class PointerF1(PointerMetricBase):
+    def __init__(self, head_size, device, avg):
+        super(PointerF1, self).__init__(head_size, device, avg)
+
+    def compute(self):
+        if self.avg == 'micro':
+            f1 = torch.sum(self.tp) / torch.sum(self.true + self.pred)
+        else:
+            f1 = self.tp / (self.true + self.pred)
+            f1 = torch.mean(f1)
+        return 2 * f1
+
+
+class PointerPrecision(PointerMetricBase):
+    def __init__(self, head_size, device, avg):
+        super(PointerPrecision, self).__init__(head_size, device, avg)
+
+    def compute(self):
+        if self.avg == 'micro':
+            pr = torch.sum(self.tp) / torch.sum(self.pred)
+        else:
+            pr = self.tp / (self.pred)
+            pr = torch.mean(pr)
+        return pr
+
+
+class PointerRecall(PointerMetricBase):
+    def __init__(self, head_size, device, avg):
+        super(PointerRecall, self).__init__(head_size, device, avg)
+
+    def compute(self):
+        if self.avg == 'micro':
+            r = torch.sum(self.tp) / torch.sum(self.true)
+        else:
+            r = self.tp / (self.true)
+            r = torch.mean(r)
+        return r
+
+
 def pad_sequence(input_, pad_len=None, pad_value=0):
     """
     Pad List[List] sequence to same length
@@ -298,8 +347,8 @@ if __name__ == '__main__':
             f'precision_{avg}': SpanPrecision(idx2label=idx2label, schema='BIO', avg=avg)
         })
 
-    preds = [[0, 1, 2, 0, 1, 2, 0, 0]]
-    label_ids = [[0, 1, 2, 0, 1, 2, 0, 0]]
+    preds = [[0, 1, 2, 0, 1, 2, 0, 0],[0,0,0]]
+    label_ids = [[0, 1, 2, 0, 1, 2, 0, 0],[1,2,0]]
     for metric in metrics.values():
         metric.update(preds, label_ids)
     multi_metrics = {key: metric.compute().item() for key, metric in metrics.items()}

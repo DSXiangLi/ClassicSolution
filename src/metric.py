@@ -2,7 +2,7 @@
 import torch
 import numpy as np
 from torchmetrics import Accuracy, AUROC, AveragePrecision, F1Score, Recall, Precision
-from src.seqlabel_utils import SpanF1, SpanPrecision, SpanRecall
+from src.seqlabel_utils import SpanF1, SpanPrecision, SpanRecall, PointerF1, PointerPrecision, PointerRecall
 from itertools import chain
 
 
@@ -180,6 +180,41 @@ def seq_span_metrics(model, valid_loader, idx2label, device):
         end_pred = end_pred.view(-1)[mask].cpu().numpy()
         for metric in metrics.values():
             metric.update((start_pred, end_pred), (start_label, end_label))
+
+    multi_metrics = {key: metric.compute().item() for key, metric in metrics.items()}
+    multi_metrics['val_loss'] = np.mean(val_loss)
+    return multi_metrics
+
+
+def seq_pointer_metrics(model, valid_loader, idx2label, device):
+    """
+    Global Pointer 返回预测是二分类，可以直接复用binary classification
+    """
+    model.eval()
+    # Tracking variables
+    metrics = {}
+    for avg in ['micro', 'macro']:
+        metrics.update({
+            f'f1_{avg}': PointerF1(head_size=len(idx2label), device=device, avg=avg),
+            f'recall_{avg}': PointerRecall(head_size=len(idx2label), device=device, avg=avg),
+            f'precision_{avg}': PointerPrecision(head_size=len(idx2label), device=device, avg=avg)
+        })
+    val_loss = []
+
+    for batch in valid_loader:
+        features = {k: v.to(device) for k, v in batch.items()}
+        with torch.no_grad():
+            logits = model(features)
+            loss = model.compute_loss(features, logits)
+            pred = model.decode(features, logits)
+            mask = model.get_mask(features, logits)
+
+        val_loss.append(loss.item())
+        label_ids = features['label_ids']
+        preds = pred * mask.long()  # mask all padding and lower triangle to zero
+
+        for metric in metrics.values():
+            metric.update(preds, label_ids)
 
     multi_metrics = {key: metric.compute().item() for key, metric in metrics.items()}
     multi_metrics['val_loss'] = np.mean(val_loss)
