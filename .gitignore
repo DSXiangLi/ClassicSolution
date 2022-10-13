@@ -7,4 +7,5 @@ __pycache__/
 */.ipynb_checkpoints
 */submit/*
 */checkpoint/*/*
-*/trainsample/*
+*/trainsample/*.csv
+*/trainsample/*.json
