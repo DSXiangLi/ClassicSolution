@@ -7,9 +7,10 @@
 3. 评估指标: 负面判定指标F1​、主体判定指标F1​，整体任务F1=0.4负面F1+0.6实体F1
 4. 链接：https://www.datafountain.cn/competitions/353
 5. Top方案汇总
-    - Top1: [github](https://github.com/xiong666/ccf_financial_negative) , [zhihu](https://zhuanlan.zhihu.com/p/99222193)
-    - Top3: [github](https://github.com/Chevalier1024/CCF-BDCI-ABSA), [zhihu](https://zhuanlan.zhihu.com/p/97900951)
+    - Top1: [github](https://github.com/xiong666/ccf_financial_negative) , [知乎](https://zhuanlan.zhihu.com/p/99222193)
+    - Top3: [github](https://github.com/Chevalier1024/CCF-BDCI-ABSA), [知乎](https://zhuanlan.zhihu.com/p/97900951)
     - Top5: [github](https://github.com/rebornZH/2019-CCF-BDCI-NLP) 
+    - Top10: [知乎](https://zhuanlan.zhihu.com/p/98804107)
  6. 样本Demo
  ![](https://files.mdnice.com/user/8955/1486ab47-8a3d-4451-a07f-802c2a007dc7.png) 
  7. 请自行按链接下载数据到./fin_neg_entity/trainsample目录下
