@@ -1,11 +1,16 @@
 # -*-coding:utf-8 -*-
 """
-    Noisy Robust Loss, Class Imbalance Loss
+    Noisy Robust Loss
     - Generalize Cross entropy
     - Symmetric Cross Entropy
     - Bootstrap Cross Entropy
     - Peer Loss
+
+    Class Imbalance Loss
     - Focal Loss
+
+    Multi Label
+    - MultiLabel Cross Entropy
 """
 import torch
 import random
@@ -115,3 +120,23 @@ class BinaryFocal(nn.Module):
         imbalance = torch.sum(labels * self.class_weight)
         loss = torch.mean(loss * imbalance)
         return loss
+
+
+class MultilabelCrossEntropy(nn.Module):
+    def __init__(self):
+        super(MultilabelCrossEntropy, self).__init__()
+
+    def forward(self, logits, labels):
+        """
+        多标签分类的交叉熵
+        https://kexue.fm/archives/7359
+        """
+        y_pred = (1 - 2 * labels) * logits  # -1 -> pos classes, 1 -> neg classes
+        y_pred_neg = y_pred - logits * 1e12  # mask the pred outputs of pos classes
+        y_pred_pos = (y_pred - (1 - logits) * 1e12)  # mask the pred outputs of neg classes
+        zeros = torch.zeros_like(y_pred[..., :1])
+        y_pred_neg = torch.cat([y_pred_neg, zeros], dim=-1)
+        y_pred_pos = torch.cat([y_pred_pos, zeros], dim=-1)
+        neg_loss = torch.logsumexp(y_pred_neg, dim=-1)
+        pos_loss = torch.logsumexp(y_pred_pos, dim=-1)
+        return (neg_loss + pos_loss).mean()
