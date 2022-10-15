@@ -8,6 +8,10 @@
 5. Top方案汇总
     - Rank：[视频](https://live.baidu.com/m/media/pclive/pchome/live.html?room_id=4008201814&source=h5pre)
     - Rank12：[github](https://github.com/qiufengyuyi/event_extraction), [知乎](https://zhuanlan.zhihu.com/p/141237763)
+    - Rank17: [github](https://github.com/onewaymyway/DuEE_2020), [方案分享](https://aistudio.baidu.com/aistudio/projectdetail/545914)
+    - Baseline
+        - 官方：[paddlehub](https://github.com/PaddlePaddle/Research/tree/master/KG/DuEE_baseline/DuEE-PaddleHub)
+        - 苏神： [github](https://github.com/bojone/lic2020_baselines), [博客](https://kexue.fm/archives/7321)
 6. 样本Demo
     - 输入：包含事件信息的一个或多个连续完整句子
     ```
@@ -62,6 +66,6 @@
         ]
     }
     ```
-7. 请自行下载数据到duee/trainsample目录下，[下载地址](https://aistudio.baidu.com/aistudio/competition/detail/46/0/datasets)
+7. 请自行下载原始数据到duee/trainsample目录下，[下载地址](https://aistudio.baidu.com/aistudio/competition/detail/46/0/datasets)
 
 
