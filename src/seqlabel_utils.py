@@ -80,10 +80,10 @@ def get_entity_bio(tags, idx2label=None):
         if 'B' in tag:
             if pos[1] != -1:
                 pos_list.append([type1] + pos)
-            type1 = tag.split('-')[1]
+            type1 = tag[2:]
             pos = [i, i]
         elif 'I' in tag and pos[0] != -1:
-            if tag.split('-')[1] == type1:
+            if tag[2:] == type1:
                 pos[1] = i
         else:
             if type1:
@@ -93,6 +93,7 @@ def get_entity_bio(tags, idx2label=None):
     if type1:
         pos_list.append([type1] + pos)
     return pos_list
+
 
 
 def get_entity_span(tags_pair, idx2label, max_span=20):
