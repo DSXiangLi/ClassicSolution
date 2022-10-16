@@ -100,6 +100,39 @@ def multi_cls_metrics(model, valid_loader, device, label_name='label'):
     return multi_metrics
 
 
+def multilabel_metrics(model, valid_loader, device, label_name='label'):
+    """
+    Global Average Multi Label Classification
+    """
+    model.eval()
+
+    # Tracking variables
+    metrics = {}
+    metrics.update({
+        f'acc': Accuracy( num_classes=model.label_size, mdmc_average='global').to(device),
+        f'f1': F1Score( num_classes=model.label_size, mdmc_average='global').to(device),
+        f'recall': Recall(num_classes=model.label_size, mdmc_average='global').to(device),
+        f'precision': Precision(num_classes=model.label_size, mdmc_average='global').to(device),
+    })
+    val_loss = []
+
+    for batch in valid_loader:
+        features = {k:v.to(device) for k,v in batch.items()}
+
+        with torch.no_grad():
+            logits = model(features)
+            loss = model.compute_loss(features, logits)
+
+        val_loss.append(loss.item())
+
+        for metric in metrics.values():
+            metric.update(logits, features[label_name].int())
+
+    multi_metrics = {key: metric.compute().item() for key, metric in metrics.items()}
+    multi_metrics['val_loss'] = np.mean(val_loss)
+    return multi_metrics
+
+
 def seq_tag_metrics(model, valid_loader, idx2label, schema, device):
     """
     Sequence Labelling task seq level metircs, supported
@@ -242,6 +275,15 @@ def binary_cls_log(epoch, binary_metrics):
     print(f"{epoch + 1:^7} | {binary_metrics['acc']:^9.3%} | {binary_metrics['auc']:^9.3%} |",
           f"{binary_metrics['ap']:^9.3%} | {binary_metrics['precision']:^9.3%} |",
           f"{binary_metrics['recall']:^9.3%} | {binary_metrics['f1']:^9.3%} ")
+    print("\n")
+
+
+def multilabel_log(epoch, multilabel_metrics):
+    print("\n")
+    print(f"{'Epoch':^7} | {'Val Acc':^9} | {'Precision':^9} | {'Recall':^9} | {'Val F1':^9}")
+    print('-' * 80)
+    print(f"{epoch + 1:^7} |{multilabel_metrics['acc']:^9.3%} | {multilabel_metrics['precision']:^9.3%}  |",
+          f"{multilabel_metrics['recall']:^9.3%} | {multilabel_metrics['f1']:^9.3%} ")
     print("\n")
 
 
