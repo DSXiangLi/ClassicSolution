@@ -117,7 +117,7 @@ class GlobalPointerDataset():
         sample = self.features[idx]
         sample = {k: torch.tensor(v) for k, v in sample.items()}
         if self.labels:
-            sample['label_matrix'] = torch.tensor(self.labels[idx])
+            sample['label_ids'] = torch.tensor(self.labels[idx])
         return sample
 
     def __len__(self):
