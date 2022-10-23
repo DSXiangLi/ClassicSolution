@@ -11,8 +11,9 @@ import string
 import string
 import zhon.hanzi as hz
 
-
 __all__ = ['stop_word_handler', 'emoji_handler', 'punctuation_handler', 'text_emoji_handler', 'mention_handler']
+
+SpecialToken = "\~!@#$%^&*()_+-*/<>,.[]/?"
 
 
 def rm_dup_space(text):
@@ -34,14 +35,14 @@ def full2half(text):
 
 
 def get_extra_chars(sentences):
-    pattern =  re.compile('[^\u4e00-\u9fa5a-zA-Z0-9\*]')
+    pattern = re.compile('[^\u4e00-\u9fa5a-zA-Z0-9\*]')
     extra_chars = set()
     for t in list(sentences):
         extra_chars.update(pattern.findall(str(t)))
     return extra_chars
 
 
-def get_useless_chars(sentences, kept_chars=hz.punctuation+string.punctuation):
+def get_useless_chars(sentences, kept_chars=hz.punctuation + string.punctuation):
     extra_chars = get_extra_chars(sentences)
     rm_chars = extra_chars.difference(set(kept_chars))
     return rm_chars
