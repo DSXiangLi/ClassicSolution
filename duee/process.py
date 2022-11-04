@@ -128,6 +128,7 @@ def event_preprocess(df, useless_chars):
 
 
 def argument_preprocess(df, useless_chars):
+    ##TODO: 修改BIO label 的生成方案
     df['clean_text'] = df['text'].map(lambda x: text_preprocess(x, useless_chars))
     df['arguments'] = df['arguments'].map(lambda x: [[i[0], text_preprocess(i[1], useless_chars)]for i in x])
     df['event_text'] = df.apply(lambda x: x.event_type + ':' + x.clean_text, axis=1)
@@ -135,4 +136,26 @@ def argument_preprocess(df, useless_chars):
         df['argument_pos'] = df.apply(lambda x: gen_pos(x.event_text, x.arguments), axis=1)
         df['argument_bio_label'] = df.apply(lambda x: pos2bio(x.event_text, x.argument_pos), axis=1)
     return df
+
+
+def text_alignment(text_o, text_c):
+    """
+    Input
+        text_o: original text
+        text_c: text after cleaning
+    Return
+        pos_map: {org_pos: new_pos }
+
+    """
+    pos_map = {}
+    i,j=0,0
+    lo, lc = len(text_o), len(text_c)
+    while i<lo and j < lc:
+        if text_o[lo] == text_c[lc]:
+            pos_map[lo] = lc
+            lo +=1
+            lc +=1
+        else:
+            lo+=1
+    return pos_map
 
