@@ -48,6 +48,7 @@ class Schema2Label:
         self.schema = self.load_schema(file_name)
         self._event_bio = None
         self._event = None
+        self._event_hier = None
         self._argument_bio = None
 
     @staticmethod
@@ -85,6 +86,14 @@ class Schema2Label:
                 bio['I-' + j] = 2 * (i + 1)
             self._argument_bio = bio
         return self._argument_bio
+
+    def dump_hierarchy(self):
+        # dump hierarchy: {parent: [children]}
+        dic = defaultdict(list)
+        for l in self.schema:
+            dic[l.split('-')[0]].append(l.split('-')[1])
+        with open('hierarchy.json', 'w', encoding='utf-') as f:
+            f.write(json.dumps(dic, ensure_ascii=False) + '\n')
 
 
 def gen_pos(text, span_list, special_token=SpecialToken):
