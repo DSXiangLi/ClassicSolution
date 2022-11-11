@@ -49,6 +49,7 @@ class Schema2Label:
         self._event_bio = None
         self._event = None
         self._event_hier = None
+        self._event_hier_map = None # {parent:[children]}
         self._argument_bio = None
 
     @staticmethod
@@ -66,6 +67,16 @@ class Schema2Label:
         if self._event is None:
             self._event = {j: i for i, j in enumerate(self.schema)}
         return self._event
+
+    @property
+    def event_hier_label(self):
+        if self._event_hier is None:
+            if self._event_hier_map is None:
+                self._event_hier_map = defaultdict(list)
+                for i in self.schema:
+                    self._event_hier_map[i.split('-')[0]].append(i.split('-')[1])
+            self._event_hier = {j:i for i,j in enumerate(self._event_hier_map)}
+        return self._event_hier
 
     @property
     def event_bio_label(self):
@@ -88,12 +99,12 @@ class Schema2Label:
         return self._argument_bio
 
     def dump_hierarchy(self):
-        # dump hierarchy: {parent: [children]}
-        dic = defaultdict(list)
-        for l in self.schema:
-            dic[l.split('-')[0]].append(l.split('-')[1])
-        with open('hierarchy.json', 'w', encoding='utf-') as f:
-            f.write(json.dumps(dic, ensure_ascii=False) + '\n')
+        if self._event_hier_map is None:
+            self._event_hier_map = defaultdict(list)
+            for i in self.schema:
+                self._event_hier_map[i.split('-')[0]].append(i.split('-')[1])
+        with open('./trainsample/hierarchy.json', 'w', encoding='utf-') as f:
+            f.write(json.dumps(self._event_hier_map, ensure_ascii=False) + '\n')
 
 
 def gen_pos(text, span_list, special_token=SpecialToken):
@@ -132,7 +143,8 @@ def event_preprocess(df, useless_chars):
     if 'trigger_list' in df.columns:
         df['event_pos'] = df.apply(lambda x: gen_pos(x.clean_text, x.trigger_list), axis=1)
         df['event_bio_label'] = df.apply(lambda x: pos2bio(x.clean_text, x.event_pos), axis=1)
-        df['event_label'] = df['trigger_list'].map(lambda x: [i[0] for i in x])
+        df['event_label'] = df['trigger_list'].map(lambda x: list(set([i[0] for i in x])) )
+        df['event_hier_label'] = df['event_label'].map(lambda x: x + list(set([i.split('-')[0] for i in x])))
     return df
 
 
@@ -167,4 +179,3 @@ def text_alignment(text_o, text_c):
         else:
             lo+=1
     return pos_map
-
