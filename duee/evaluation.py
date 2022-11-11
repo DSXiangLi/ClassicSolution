@@ -1,5 +1,7 @@
 import numpy as np
 import pandas as pd
+import torch.nn.functional as F
+import torch
 
 
 def extract_multilabel(prob, idx2label, threshold):
@@ -37,6 +39,22 @@ def event_evaluation(y_true, y_pred):
             'recall': recall,
             'f1': f1,
             'accuracy': accuracy}
+
+
+def multilabel_inference(model, data_loader, device):
+    model.eval()
+
+    all_probs = []
+    for batch in data_loader:
+        # Load batch to GPU
+        inputs = {k: v.to(device) for k, v in batch.items()}
+
+        # Compute logits
+        with torch.no_grad():
+            logits = model(inputs)  # ignore label for test
+            probs = F.sigmoid(logits).cpu().numpy()
+        all_probs += probs.tolist()
+    return all_probs
 
 
 def argument_evaluation(y_true, y_pred):
