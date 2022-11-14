@@ -49,7 +49,8 @@ class Schema2Label:
         self._event_bio = None
         self._event = None
         self._event_hier = None
-        self._event_hier_map = None # {parent:[children]}
+        self._event_hier_rel = None # {parent:[children]}
+        self.event_hier_relid = None # {parent:[children]}
         self._argument_bio = None
 
     @staticmethod
@@ -71,11 +72,20 @@ class Schema2Label:
     @property
     def event_hier_label(self):
         if self._event_hier is None:
-            if self._event_hier_map is None:
-                self._event_hier_map = defaultdict(list)
-                for i in self.schema:
-                    self._event_hier_map[i.split('-')[0]].append(i.split('-')[1])
-            self._event_hier = {j:i for i,j in enumerate(self._event_hier_map)}
+            self._event_hier_rel = defaultdict(list)
+            for l in self.schema:
+                self._event_hier_rel[l.split('-')[0]].append(l)
+            idx = 0
+            self._event_hier = {}
+            for parent, children in self._event_hier_rel.items():
+                self._event_hier[parent] = idx
+                idx+=1
+                for c in children:
+                    self._event_hier[c] = idx
+                    idx+=1
+            self.event_hier_relid = {}
+            for parent, children in self._event_hier_rel.items():
+                self.event_hier_relid[self._event_hier[parent]] = [self._event_hier[i] for i in children]
         return self._event_hier
 
     @property
@@ -103,8 +113,8 @@ class Schema2Label:
             self._event_hier_map = defaultdict(list)
             for i in self.schema:
                 self._event_hier_map[i.split('-')[0]].append(i.split('-')[1])
-        with open('./trainsample/hierarchy.json', 'w', encoding='utf-') as f:
-            f.write(json.dumps(self._event_hier_map, ensure_ascii=False) + '\n')
+        with open('./trainsample/hierarchy.json', 'w', encoding='utf-8') as f:
+            f.write(json.dumps(self._event_hier_relid, ensure_ascii=False) + '\n')
 
 
 def gen_pos(text, span_list, special_token=SpecialToken):
@@ -177,5 +187,6 @@ def text_alignment(text_o, text_c):
             lo +=1
             lc +=1
         else:
-            lo+=1
+            lo +=1
     return pos_map
+

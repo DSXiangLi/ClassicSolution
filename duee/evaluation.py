@@ -1,5 +1,3 @@
-import numpy as np
-import pandas as pd
 import torch.nn.functional as F
 import torch
 
@@ -13,7 +11,7 @@ def extract_multilabel(prob, idx2label, threshold):
     return labels
 
 
-def event_evaluation(y_true, y_pred):
+def multilabel_evaluation(y_true, y_pred):
     """
     y_true: [["组织关系-裁员", "组织关系-解散"], ["灾害/意外-车祸", "人生-死亡"], ["竞赛行为-胜负"]]
     y_pred: same as y_true
