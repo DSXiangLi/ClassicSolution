@@ -1,9 +1,12 @@
 import torch.nn.functional as F
 import torch
+import numpy as np
 
 
-def extract_multilabel(prob, idx2label, threshold):
+def extract_multilabel(prob, idx2label, threshold, greedy=False):
     pred = [int(i>threshold) for i in prob]
+    if sum(pred)==0 and greedy:
+        return [idx2label[ np.argmax(prob)]]
     labels = []
     for i,j in enumerate(pred):
         if j==1:
@@ -53,12 +56,3 @@ def multilabel_inference(model, data_loader, device):
             probs = F.sigmoid(logits).cpu().numpy()
         all_probs += probs.tolist()
     return all_probs
-
-
-def argument_evaluation(y_true, y_pred):
-    """
-    Token & Span Level Evaluation
-    y_true: 按事件类型explode的样本，每一条是一条文本对应一个事件类型
-    """
-
-    pass
