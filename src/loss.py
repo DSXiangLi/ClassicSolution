@@ -122,6 +122,21 @@ class BinaryFocal(nn.Module):
         return loss
 
 
+class MultiLabelFocal(nn.Module):
+    def __init__(self, gamma=2):
+        #针对多标签问题，默认不适用类权重
+        super(MultiLabelFocal, self).__init__()
+        self.gamma = gamma
+
+    def forward(self, logits, labels):
+        # y * log(p) * (1-p) *** r
+        probs = F.sigmoid(logits)
+        loss = - torch.sum(labels * torch.log(probs) * torch.pow(1 - probs, self.gamma), dim=-1)
+        loss = torch.mean(loss)
+        return loss
+
+
+
 class MultilabelCrossEntropy(nn.Module):
     def __init__(self):
         super(MultilabelCrossEntropy, self).__init__()
