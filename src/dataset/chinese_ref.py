@@ -82,7 +82,7 @@ def add_sub_symbol(bert_tokens: List[str], chinese_word_set: set()):
 def prepare_word_ref(lines, ltp_tokenizer, bert_tokenizer):
     ltp_res = []
     for i in range(0, len(lines), 100):
-        res = ltp_tokenizer.seg(lines[i: i + 100])[0]
+        res = ltp_tokenizer.pipeline(lines[i: i + 100], tasks=['cws']).to_tuple()[0]
         res = [get_chinese_word(r) for r in res]
         ltp_res.extend(res)
     assert len(ltp_res) == len(lines)
