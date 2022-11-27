@@ -185,7 +185,7 @@ def argument_preprocess(df, useless_chars):
     df['text'] = df['text'].map(lambda x: full2half(x))  # for following al
     df['clean_text'] = df['text'].map(lambda x: text_preprocess(x, useless_chars))
     df['pos_map'] = df.apply(lambda x: text_alignment(x.text, x.clean_text), axis=1)
-    df['event_text'] = df.apply(lambda x: x.event_type + '-' + x.clean_text, axis=1)
+    df['event_text'] = df.apply(lambda x: x.event_type + '[SEP]' + x.clean_text, axis=1)
     df['arguments_adjust'] = df.apply(lambda x: [[i[0],
                                                   text_preprocess(i[1], useless_chars),
                                                   pos_alignment(i[2], x['pos_map']) + len(x.event_type) + 1] for i
