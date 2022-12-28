@@ -88,20 +88,19 @@ class BootstrapCrossEntropy(nn.Module):
         return loss
 
 
-class PeerCrossEntropy(nn.Module):
-    def __init__(self, alpha=0.5):
-        super(PeerCrossEntropy, self).__init__()
+class PeerLoss(nn.Module):
+    def __init__(self, loss, alpha=0.5):
+        super(PeerLoss, self).__init__()
         self.alpha = alpha
-        self.ce = nn.CrossEntropyLoss()
+        self.loss = loss
 
-    def forward(self, logits, labels):
-        # alpha * CE + (1-alpha) * random CE
+    def forward(self, preds, labels):
         index = list(range(labels.shape[0]))
         rand_index = random.shuffle(index)
         rand_labels = labels[rand_index]
-        ce_true = self.ce(logits, labels)
-        ce_rand = self.ce(logits, rand_labels)
-        loss = self.alpha * ce_true + (1 - self.alpha) * ce_rand
+        loss_true = self.loss(preds, labels)
+        loss_rand = self.loss(preds, rand_labels)
+        loss = loss_true - self.alpha * loss_rand
         return loss
 
 
