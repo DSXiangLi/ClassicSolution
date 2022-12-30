@@ -38,7 +38,7 @@ class GeneralizeCrossEntropy(nn.Module):
         # Negative box cox: (1-f(x)^q)/q
         labels = torch.nn.functional.one_hot(labels, num_classes=logits.shape[-1])
         probs = F.softmax(logits, dim=-1)
-        loss = 1 - torch.pow(torch.sum(labels * probs, dim=-1), self.q) / self.q
+        loss = (1 - torch.pow(torch.sum(labels * probs, dim=-1), self.q) )/ self.q
         loss = torch.mean(loss)
         return loss
 
@@ -94,12 +94,12 @@ class PeerLoss(nn.Module):
         self.alpha = alpha
         self.loss = loss
 
-    def forward(self, preds, labels):
+    def forward(self, logits, labels):
         index = list(range(labels.shape[0]))
         rand_index = random.shuffle(index)
         rand_labels = labels[rand_index]
-        loss_true = self.loss(preds, labels)
-        loss_rand = self.loss(preds, rand_labels)
+        loss_true = self.loss(logits, labels)
+        loss_rand = self.loss(logits, rand_labels)
         loss = loss_true - self.alpha * loss_rand
         return loss
 
