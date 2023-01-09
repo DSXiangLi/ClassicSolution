@@ -67,5 +67,18 @@
     }
     ```
 7. 请自行下载原始数据到duee/trainsample目录下，[下载地址](https://aistudio.baidu.com/aistudio/competition/detail/46/0/datasets)
-
+8. 相关方案
+- Top1: Joint抽取[视频](http://live.baidu.com/m/media/pclive/pchome/live.html?room_id=4008201814&source=h5pre)
+- Rank12: MRC抽取
+[github](https://github.com/qiufengyuyi/event_extraction)
+[方案总结](https://zhuanlan.zhihu.com/p/141237763)
+- Rank17: pipeline抽取 
+[github](https://github.com/onewaymyway/DuEE_2020),
+ [方案总结](https://aistudio.baidu.com/aistudio/projectdetail/545914)
+- PaddleNLP基线方案:
+[github](https://github.com/PaddlePaddle/Research/tree/master/KG/DuEE_baseline/DuEE-PaddleHub),
+[代码解析](https://exmachinelearning.github.io/PaddleNLP_Homework/homework/duee.html)
+- 苏神基线方案: 
+[github](https://github.com/bojone/lic2020_baselines),
+[科学空间](https://kexue.fm/archives/7321)
 
