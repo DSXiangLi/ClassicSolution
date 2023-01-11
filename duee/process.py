@@ -17,7 +17,7 @@ def load_event(filename):
             trigger_list = []
             if 'event_list' in l:
                 for event in l['event_list']:
-                    trigger_list.append([event['event_type'], event['trigger']])
+                    trigger_list.append([event['event_type'], event['trigger'], event['trigger_start_index']])
                 samples.append([l['id'], l['text'], trigger_list])
             else:
                 samples.append([l['id'], l['text']])
@@ -108,6 +108,19 @@ class Schema2Label:
         return self._argument_bio
 
 
+def text_preprocess(s, useless_chars):
+    # 注意这里做了大写转小写的转换，如果是比赛需要在最终提交的时候进行还原
+    if not s:
+        return s
+    # 保证BIO抽取位置对齐
+    ## fitler useless chars
+    for uc in useless_chars:
+        s = s.replace(uc, '')
+    ## remove space in text to avoid tokenizer mismatch
+    s = re.sub(r'\s{1,}', '', s)
+    return s
+
+
 def gen_pos(text, span_list, special_token=SpecialToken):
     """
     text: 清洗后文本无空格
@@ -123,30 +136,6 @@ def gen_pos(text, span_list, special_token=SpecialToken):
             pos = list(pos.span())  # 改成左闭右闭的
             pos_list.append([span[0], pos[0], pos[1] - 1])
     return pos_list
-
-
-def text_preprocess(s, useless_chars):
-    # 注意这里做了大写转小写的转换，如果是比赛需要在最终提交的时候进行还原
-    if not s:
-        return s
-    s = full2half(s)
-    # 保证BIO抽取位置对齐
-    ## fitler useless chars
-    for uc in useless_chars:
-        s = s.replace(uc, '')
-    ## remove space in text to avoid tokenizer mismatch
-    s = re.sub(r'\s{1,}', '', s)
-    return s
-
-
-def event_preprocess(df, useless_chars):
-    df['clean_text'] = df['text'].map(lambda x: text_preprocess(x, useless_chars))
-    if 'trigger_list' in df.columns:
-        df['event_pos'] = df.apply(lambda x: gen_pos(x.clean_text, x.trigger_list), axis=1)
-        df['event_bio_label'] = df.apply(lambda x: pos2bio(x.clean_text, x.event_pos), axis=1)
-        df['event_label'] = df['trigger_list'].map(lambda x: list(set([i[0] for i in x])))
-        df['event_hier_label'] = df['event_label'].map(lambda x: x + list(set([i.split('-')[0] for i in x])))
-    return df
 
 
 def text_alignment(text_o, text_c):
@@ -166,19 +155,60 @@ def text_alignment(text_o, text_c):
             pos_map[i] = j
             i += 1
             j += 1
+        elif text_o[i] ==' ':
+            #原始文本存在空格需要跳过
+            pos_map[i] = j
+            i += 1
         else:
             i += 1
     return pos_map
 
 
-def pos_alignment(pos, pos_map):
-    # 部分argument存在前面有空格，空格在上面的alignment中会被跳过
-    if pos in pos_map:
-        return pos_map[pos]
-    else:
-        while pos not in pos_map:
-            pos += 1
-        return pos_map[pos]
+def adjust_pos(pos_map, trigger_list):
+    """
+    基于清洗后文本，返回事件触发词列表
+    Input
+        pos_map: 清洗后文本和原始文本位置对应关系
+        trigger_list: 触发词列表[event_type, trigger_word, start_index]
+    Return:
+        pos_list: [event_type, start_index, end_index] 左闭右闭
+    """
+    pos_list = []
+    for trigger in trigger_list:
+        span = re.sub(r'\s{1,}', '', trigger[1]) # remove all spances in span
+        start = pos_map[trigger[2]]
+        end = start+len(span)-1
+        pos_list.append([trigger[0], start, end])
+    return pos_list
+
+
+def check(text, pos):
+    tmp = []
+    for i in pos:
+        tmp.append(text[i[1]:i[2]+1])
+    return tmp
+
+
+def event_preprocess(df, useless_chars):
+    df['clean_text'] = df['text'].map(lambda x: text_preprocess(x, useless_chars))
+    if 'trigger_list' in df.columns:
+        #使用正则直接搜索Trigger词，会有5%左右是词相同但是词出现的上下文并非是事件的情况发生
+        #df['event_pos'] = df.apply(lambda x: gen_pos(x.clean_text, x.trigger_list), axis=1)
+        df['pos_map'] = df.apply(lambda x: text_alignment(x.text, x.clean_text), axis=1)
+        df['event_pos'] = df.apply(lambda x: adjust_pos(x.pos_map, x.trigger_list), axis=1)
+        # check whether event_pos is correct
+        df['check'] = df.apply(lambda x: check(x.clean_text, x.event_pos), axis=1)
+        counter = sum(
+            df['trigger_list'].map(lambda x: [re.sub(r'\s{1,}', '', i[1]) for i in x]) != df['check'])
+        print(f'{counter} out of {df.shape[0]} trigger not match')
+        # 检查是否存在label越界的情况
+        counter = df.apply(lambda x: max([i[2] for i in x.event_pos]) >= len(x.clean_text), axis=1).sum()
+        print(f'{counter} out of {df.shape[0]} even pos exceed text line')
+        # compute bio, cls, hier cls label
+        df['event_bio_label'] = df.apply(lambda x: pos2bio(x.clean_text, x.event_pos), axis=1)
+        df['event_label'] = df['trigger_list'].map(lambda x: list(set([i[0] for i in x])))
+        df['event_hier_label'] = df['event_label'].map(lambda x: x + list(set([i.split('-')[0] for i in x])))
+    return df
 
 
 def argument_preprocess(df, useless_chars):
@@ -188,7 +218,7 @@ def argument_preprocess(df, useless_chars):
     df['event_text'] = df.apply(lambda x: x.event_type + '[SEP]' + x.clean_text, axis=1)
     df['arguments_adjust'] = df.apply(lambda x: [[i[0],
                                                   text_preprocess(i[1], useless_chars),
-                                                  pos_alignment(i[2], x['pos_map']) + len(x.event_type) + 1] for i
+                                                  x.pos_map[i[2]] + len(x.event_type) + 1] for i
                                                  in x['arguments']], axis=1)
     df['arguments_pos'] = df['arguments_adjust'].map(lambda x: [[i[0], i[2], i[2] + len(i[1]) - 1] for i in x])
     # df['argument_pos'] = df.apply(lambda x: gen_pos(x.event_text, x.arguments), axis=1)

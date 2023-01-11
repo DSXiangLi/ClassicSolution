@@ -32,7 +32,7 @@ class BertCrf(nn.Module):
         return preds
 
     def compute_loss(self, features, logits):
-        loss = -1 * self.crf(emissions=logits, tags=features['label_ids'],
+        loss = -1 * self.crf(emissions=logits, tags=features['label_ids'].long(),
                              mask=features['attention_mask'].bool(), reduction='mean')
         return loss
 
