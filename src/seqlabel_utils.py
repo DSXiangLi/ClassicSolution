@@ -60,7 +60,8 @@ def extract_entity(text, pos_list):
         if pos[1] >= l:
             continue
         ent[pos[0]].add(text[pos[1]: (pos[2] + 1)])
-    return ent
+    # change back to dict for seralizer
+    return dict(ent)
 
 
 def get_entity_bio(tags, idx2label=None):

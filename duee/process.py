@@ -209,16 +209,18 @@ def event_preprocess(df, useless_chars):
         #df['event_pos'] = df.apply(lambda x: gen_pos(x.clean_text, x.trigger_list), axis=1)
         df['pos_map'] = df.apply(lambda x: text_alignment(x.text, x.clean_text), axis=1)
         df['event_pos'] = df.apply(lambda x: adjust_pos(x.pos_map, x.trigger_list), axis=1)
-        # check whether event_pos is correct
+
+        # 检查是否存在调整后的位置抽取实体错误的情况
         df['check'] = df.apply(lambda x: check(x.clean_text, x.event_pos), axis=1)
         counter = sum(
             df['trigger_list'].map(lambda x: [re.sub(r'\s{1,}', '', i[1]) for i in x]) != df['check'])
         print(f'{counter} out of {df.shape[0]} trigger not match')
+
         # 检查是否存在label越界的情况
         counter = df.apply(lambda x: max([i[2] for i in x.event_pos]) >= len(x.clean_text), axis=1).sum()
         print(f'{counter} out of {df.shape[0]} even pos exceed text line')
-        # compute bio, cls, hier cls label
-        df['event_bio_label'] = df.apply(lambda x: pos2bio(x.clean_text, x.event_pos), axis=1)
+
+        # 生成事件分类多标签
         df['event_label'] = df['trigger_list'].map(lambda x: list(set([i[0] for i in x])))
         df['event_hier_label'] = df['event_label'].map(lambda x: x + list(set([i.split('-')[0] for i in x])))
     return df
@@ -242,8 +244,6 @@ def argument_preprocess(df, useless_chars):
                                                  in x['arguments']], axis=1)
     # 生成BIO标注的起始位置
     df['arguments_pos'] = df['arguments_adjust'].map(lambda x: [[i[0], i[2], i[2] + len(i[1]) - 1] for i in x])
-    # df['argument_pos'] = df.apply(lambda x: gen_pos(x.event_text, x.arguments), axis=1)
-    df['argument_bio_label'] = df.apply(lambda x: pos2bio(x.event_text, x.arguments_pos), axis=1)
     return df
 
 

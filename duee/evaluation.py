@@ -1,6 +1,7 @@
 import torch.nn.functional as F
 import torch
 import numpy as np
+import pandas as pd
 
 
 def extract_multilabel(prob, idx2label, threshold, greedy=False):
@@ -14,7 +15,7 @@ def extract_multilabel(prob, idx2label, threshold, greedy=False):
     return labels
 
 
-def multilabel_evaluation(y_true, y_pred):
+def multilabel_evaluation(y_true, y_pred, verbose=False):
     """
     y_true: [["组织关系-裁员", "组织关系-解散"], ["灾害/意外-车祸", "人生-死亡"], ["竞赛行为-胜负"]]
     y_pred: same as y_true
@@ -34,12 +35,19 @@ def multilabel_evaluation(y_true, y_pred):
     recall = tp / (tp + fn)
     f1 = 2 * (precision * recall) / (precision + recall)
     accuracy = tp / n
-    return {'n_sample': len(y_true),
+    stat = {'n_sample': len(y_true),
             'n_pos': (tp + fn),
             'precision': precision,
             'recall': recall,
             'f1': f1,
             'accuracy': accuracy}
+
+    if verbose:
+        stat = pd.DataFrame(stat, index=[0])
+        print(stat)
+    else:
+        return stat
+
 
 
 def multilabel_inference(model, data_loader, device):

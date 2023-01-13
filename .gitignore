@@ -9,3 +9,4 @@ __pycache__/
 */checkpoint/*/*
 */trainsample/*.csv
 */trainsample/*.json
+*/trainsample/*.txt
