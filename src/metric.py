@@ -219,6 +219,7 @@ def seq_span_metrics(model, valid_loader, idx2label, device):
     return multi_metrics
 
 
+
 def seq_pointer_metrics(model, valid_loader, idx2label, device):
     """
     Global Pointer 返回预测是二分类，可以直接复用binary classification

@@ -51,6 +51,7 @@ class Schema2Label:
         self._event_hier_rel = None  # {parent:[children]}
         self.event_hier_relid = None  # {parent:[children]}
         self._argument_bio = None
+        self._event_argument = None
 
     @staticmethod
     def load_schema(filename):
@@ -106,6 +107,18 @@ class Schema2Label:
                 bio['I-' + j] = 2 * (i + 1)
             self._argument_bio = bio
         return self._argument_bio
+
+    @property
+    def event_argument_label(self):
+        if self._event_argument is None:
+            idx = 0
+            label = {}
+            for event, arguments in self.schema.items():
+                for argument in arguments:
+                    label[event+'-'+argument] = idx
+                    idx+=1
+            self._event_argument = label
+        return self._event_argument
 
 
 def text_preprocess(s, useless_chars):
@@ -212,15 +225,48 @@ def event_preprocess(df, useless_chars):
 
 
 def argument_preprocess(df, useless_chars):
+    """
+    Pipeline抽取：已知event，对应argument的BIO标签
+        - df: 一条样本是event + text唯一确定
+    """
     df['text'] = df['text'].map(lambda x: full2half(x))  # for following al
     df['clean_text'] = df['text'].map(lambda x: text_preprocess(x, useless_chars))
+    #文本清洗会影响argument位置，生成位置映射
     df['pos_map'] = df.apply(lambda x: text_alignment(x.text, x.clean_text), axis=1)
+    #拼接事件类型
     df['event_text'] = df.apply(lambda x: x.event_type + '[SEP]' + x.clean_text, axis=1)
+    #生成位置调整后的论元起始位置
     df['arguments_adjust'] = df.apply(lambda x: [[i[0],
                                                   text_preprocess(i[1], useless_chars),
                                                   x.pos_map[i[2]] + len(x.event_type) + 1] for i
                                                  in x['arguments']], axis=1)
+    # 生成BIO标注的起始位置
     df['arguments_pos'] = df['arguments_adjust'].map(lambda x: [[i[0], i[2], i[2] + len(i[1]) - 1] for i in x])
     # df['argument_pos'] = df.apply(lambda x: gen_pos(x.event_text, x.arguments), axis=1)
     df['argument_bio_label'] = df.apply(lambda x: pos2bio(x.event_text, x.arguments_pos), axis=1)
+    return df
+
+
+def joint_preprocess(df, useless_chars):
+    """
+    事件和论元联合抽取
+        - df: 一条样本是event + text唯一确定
+        - event：事件多标签
+        - argument：event+argument的论元span标签
+    """
+    df['text'] = df['text'].map(lambda x: full2half(x))  # for following al
+    df['clean_text'] = df['text'].map(lambda x: text_preprocess(x, useless_chars))
+    if 'arguments' in df.columns:
+        df['pos_map'] = df.apply(lambda x: text_alignment(x.text, x.clean_text), axis=1)
+        #拼接event_type + argument_role得到展平的标签
+        df['arguments_adjust'] = df.apply(lambda x: [[x.event_type + '-'+ i[0],
+                                                  text_preprocess(i[1], useless_chars),
+                                                  pos_alignment(i[2], x['pos_map'])] for i
+                                                  in x['arguments']], axis=1)
+        #生成span位置
+        df['arguments_pos'] = df['arguments_adjust'].map(lambda x: [[i[0], i[2], i[2] + len(i[1]) - 1] for i in x])
+        #把展开的event+text重新聚合到text粒度
+        df = df.groupby(['id','text','clean_text']).agg({'event_type': list,
+                                                        'arguments_pos': lambda x: list(chain(*x))})
+        df.reset_index(inplace=True)
     return df

@@ -53,6 +53,7 @@ def multilabel_inference(model, data_loader, device):
         # Compute logits
         with torch.no_grad():
             logits = model(inputs)  # ignore label for test
+            pred = model.decode(inputs)
             probs = F.sigmoid(logits).cpu().numpy()
         all_probs += probs.tolist()
     return all_probs
