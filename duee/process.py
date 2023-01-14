@@ -5,7 +5,6 @@ import json
 import pandas as pd
 from src.preprocess.str_utils import full2half, SpecialToken
 from collections import defaultdict
-from src.seqlabel_utils import pos2bio
 from itertools import chain
 
 
@@ -47,9 +46,6 @@ class Schema2Label:
         self.schema = self.load_schema(file_name)
         self._event_bio = None
         self._event = None
-        self._event_hier = None
-        self._event_hier_rel = None  # {parent:[children]}
-        self.event_hier_relid = None  # {parent:[children]}
         self._argument_bio = None
         self._event_argument = None
 
@@ -68,25 +64,6 @@ class Schema2Label:
         if self._event is None:
             self._event = {j: i for i, j in enumerate(self.schema)}
         return self._event
-
-    @property
-    def event_hier_label(self):
-        if self._event_hier is None:
-            self._event_hier_rel = defaultdict(list)
-            for l in self.schema:
-                self._event_hier_rel[l.split('-')[0]].append(l)
-            idx = 0
-            self._event_hier = {}
-            for parent, children in self._event_hier_rel.items():
-                self._event_hier[parent] = idx
-                idx += 1
-                for c in children:
-                    self._event_hier[c] = idx
-                    idx += 1
-            self.event_hier_relid = {}
-            for parent, children in self._event_hier_rel.items():
-                self.event_hier_relid[self._event_hier[parent]] = [self._event_hier[i] for i in children]
-        return self._event_hier
 
     @property
     def event_bio_label(self):
@@ -204,6 +181,7 @@ def check(text, pos):
 
 def event_preprocess(df, useless_chars):
     df['clean_text'] = df['text'].map(lambda x: text_preprocess(x, useless_chars))
+
     if 'trigger_list' in df.columns:
         #使用正则直接搜索Trigger词，会有5%左右是词相同但是词出现的上下文并非是事件的情况发生
         #df['event_pos'] = df.apply(lambda x: gen_pos(x.clean_text, x.trigger_list), axis=1)
@@ -222,7 +200,6 @@ def event_preprocess(df, useless_chars):
 
         # 生成事件分类多标签
         df['event_label'] = df['trigger_list'].map(lambda x: list(set([i[0] for i in x])))
-        df['event_hier_label'] = df['event_label'].map(lambda x: x + list(set([i.split('-')[0] for i in x])))
     return df
 
 
