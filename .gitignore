@@ -10,3 +10,4 @@ __pycache__/
 */trainsample/*.csv
 */trainsample/*.json
 */trainsample/*.txt
+./pretrain/*
