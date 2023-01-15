@@ -154,7 +154,7 @@ def text_alignment(text_o, text_c):
     return pos_map
 
 
-def adjust_pos(pos_map, trigger_list):
+def adjust_pos(pos_map, span_list):
     """
     基于清洗后文本，返回事件触发词列表
     Input
@@ -164,11 +164,11 @@ def adjust_pos(pos_map, trigger_list):
         pos_list: [event_type, start_index, end_index] 左闭右闭
     """
     pos_list = []
-    for trigger in trigger_list:
-        span = re.sub(r'\s{1,}', '', trigger[1]) # remove all spances in span
-        start = pos_map[trigger[2]]
+    for s in span_list:
+        span = re.sub(r'\s{1,}', '', s[1]) # remove all spances in span
+        start = pos_map[s[2]]
         end = start+len(span)-1
-        pos_list.append([trigger[0], start, end])
+        pos_list.append([s[0], start, end])
     return pos_list
 
 
@@ -210,17 +210,16 @@ def argument_preprocess(df, useless_chars):
     """
     df['text'] = df['text'].map(lambda x: full2half(x))  # for following al
     df['clean_text'] = df['text'].map(lambda x: text_preprocess(x, useless_chars))
+
     #文本清洗会影响argument位置，生成位置映射
     df['pos_map'] = df.apply(lambda x: text_alignment(x.text, x.clean_text), axis=1)
+
     #拼接事件类型
+    df['event_type'] = df['event_type'].map(lambda x: x.split('-')[1])
     df['event_text'] = df.apply(lambda x: x.event_type + '[SEP]' + x.clean_text, axis=1)
-    #生成位置调整后的论元起始位置
-    df['arguments_adjust'] = df.apply(lambda x: [[i[0],
-                                                  text_preprocess(i[1], useless_chars),
-                                                  x.pos_map[i[2]] + len(x.event_type) + 1] for i
-                                                 in x['arguments']], axis=1)
-    # 生成BIO标注的起始位置
-    df['arguments_pos'] = df['arguments_adjust'].map(lambda x: [[i[0], i[2], i[2] + len(i[1]) - 1] for i in x])
+    df['pos_map'] = df.apply(lambda x: {i:j+len(x.event_type)+1 for i,j in x.pos_map.items()}, axis=1)
+    #生成位置调整后的BIO起始位置
+    df['arguments_pos'] = df.apply(lambda x: adjust_pos(x.pos_map, x.arguments), axis=1)
     return df
 
 
