@@ -6,41 +6,26 @@ from itertools import chain
 from collections import defaultdict
 import numpy as np
 from tqdm import tqdm
-from ct.utils.str_utils import *
 import math
 import jieba
+import string
+import zhon.hanzi as hz
 
 # load dict
 jieba.initialize()
 
 
-def text_process(sentence):
-    """
-    1. 字符粒度tokenize
-    2. 过滤数字
-    3. 遇到标点符号跳过并返回token list
-    3. 返回list of list
-    """
-    text = full2half(sentence)
+def text_process(text):
     output = []
-    tmp = []
-    for i in text:
-        if punctuation_handler.check(i):
-            if tmp:
-                output.append(tmp)
-            tmp = []
-            continue
-        if i == '.':
-            continue
-
-        if i.strip() and not i.isdigit():
-            tmp.append(i)
+    for i in jieba.cut(text):
+        if i in string.punctuation:
+            output.append(' ')
+        elif i in hz.punctuation:
+            output.append(' ')
+        elif i.isdigit():
+            output.append(' ')
         else:
-            if tmp:
-                output.append(tmp)
-            tmp = []
-    if tmp:
-        output.append(tmp)
+            output.append(i)
     return output
 
 
@@ -148,38 +133,32 @@ class Trie:
 
 
 class NewWordDetection(object):
-    def __init__(self, ngram, min_freq, min_pmi, min_entropy):
+    def __init__(self, sentences):
+        self.corpus = list(map(text_process, sentences))
+
+    def build_tree(self, ngram):
         self.ftree = Trie()  # forward trie tree
         self.btree = Trie()  # backward trie tree
-        self.ngram = ngram
-        self.min_freq = min_freq
-        self.min_pmi = min_pmi
-        self.min_entropy = min_entropy
-        self.corpus = None
-
-    def build_tree(self, sentence_list):
-        self.corpus = list(chain(*map(text_process, sentence_list)))
         for s in tqdm(self.corpus):
             l = len(s)
-
             for i in range(l):
                 # iter to the last token
-                fnode = self.ftree.insert(s[i:i + self.ngram])
-                bnode = self.btree.insert(s[max(i-self.ngram+1, 0): i+1][::-1])
+                fnode = self.ftree.insert(s[i:i + ngram])
+                bnode = self.btree.insert(s[i:i + ngram][::-1])
 
                 # add surrounding for end token words
-                if i + self.ngram < l:
-                    fnode.add_surrounding(s[i + self.ngram])
-                if i +1 -self.ngram>0:
+                if i + ngram < l:
+                    fnode.add_surrounding(s[i + ngram])
+                if i - 1 >= 0:
                     bnode.add_surrounding(s[i - 1])
 
-    def calc_score(self):
+    def calc_score(self, min_freq, min_pmi, min_entropy):
         self.candidates = []
         for word in tqdm(self.ftree.get_ngram()):
             freq = self.ftree.get_freq(word)
-            if freq > self.min_freq:
+            if freq > min_freq:
                 pmi = self.ftree.get_pmi(word)
-                if pmi > self.min_pmi:
+                if pmi > min_pmi:
                     left_entropy = self.btree.get_entropy(word[::-1])
                     right_entropy = self.ftree.get_entropy(word)
                     if left_entropy is None and right_entropy is None:
@@ -190,14 +169,14 @@ class NewWordDetection(object):
                         entropy = left_entropy
                     else:
                         entropy = min(left_entropy, right_entropy)
-                    if entropy > self.min_entropy:
+                    if entropy > min_entropy:
                         self.candidates.append({'word': ''.join(word),
                                                 'freq': freq,
                                                 'pmi': pmi,
                                                 'l_entropy': left_entropy,
                                                 'r_entropy': right_entropy,
                                                 'entropy': entropy})
-        self.candidates = sorted(self.candidates, key=lambda x: x['freq'], reverse=True)
+        self.candidates = sorted(self.candidates, key=lambda x: x['pmi'], reverse=True)
 
     def get_topk(self, topk=None, new_only=True):
         # filter existing word in jieba default dict
