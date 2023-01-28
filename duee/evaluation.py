@@ -49,6 +49,43 @@ def multilabel_evaluation(y_true, y_pred, verbose=False):
         return stat
 
 
+def argument_evaluation(y_true, y_pred, verbose=False):
+    """
+    y_true: {'argument_type':[arg1, arg2]}
+    y_pred: same as y_true
+    """
+    tp = 0
+    fp = 0
+    fn = 0
+    n = 0
+
+    for ytl, ypl in zip(y_true, y_pred):
+        argument_type = set(ytl.keys()).union(ypl.keys())
+        for type in argument_type:
+            yt = set(ytl.get(type,[]))
+            yp = set(ypl.get(type,[]))
+            tp += len(yt.intersection(yp))
+            fp += len(yp.difference(yt))
+            fn += len(yt.difference(yp))
+            n += len(yt.union(yp))
+
+    precision = tp / (tp + fp)
+    recall = tp / (tp + fn)
+    f1 = 2 * (precision * recall) / (precision + recall)
+    accuracy = tp / n
+    stat = {'n_sample': len(y_true),
+            'n_pos': (tp + fn),
+            'precision': precision,
+            'recall': recall,
+            'f1': f1,
+            'accuracy': accuracy}
+
+    if verbose:
+        stat = pd.DataFrame(stat, index=[0])
+        print(stat)
+    else:
+        return stat
+
 
 def multilabel_inference(model, data_loader, device):
     model.eval()

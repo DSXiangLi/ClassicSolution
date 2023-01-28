@@ -61,7 +61,7 @@ class SeqLabelDataset():
         self.build_feature()
 
     def build_feature(self):
-        if self.raw_data[0].get('label'):
+        if 'label' in self.raw_data[0]:
             self.has_label = True
 
         for data in self.raw_data:

@@ -1,14 +1,14 @@
-## 2020语言与智能技术竞赛：事件抽取任务
-1. 任务类型：封闭域事件抽取
+## 2020语言与智能技术竞赛：事件抽取任务/千言数据集：信息抽取
+1. 任务类型：封闭域事件和论元抽取
 2. 描述：句子级事件抽取任务采用DuEE1.0数据集，包含65个已定义好的事件类型约束和1.7万中文句子，分为1.2万训练集，0.15万验证集和0.35万测试集
 3. 评估指标: 预测论元与人工标注论元进行匹配，并按字级别匹配F1进行打分，不区分大小写，如论元有多个表述，则取多个匹配F1中的最高值
-4. 链接：一个短期一个长期赛事都使用了DuEE数据集
+4. 链接：一个短期一个长期赛事都使用了DuEE数据集，长期赛更新了测试集可以提交评估
     - [2020语言与智能技术竞赛：事件抽取任务](https://aistudio.baidu.com/aistudio/competition/detail/32/0/task-definition)
     - [千言数据集：信息抽取](https://aistudio.baidu.com/aistudio/competition/detail/46/0/task-definition)
-5. Top方案汇总
-    - Rank：[视频](https://live.baidu.com/m/media/pclive/pchome/live.html?room_id=4008201814&source=h5pre)
-    - Rank12：[github](https://github.com/qiufengyuyi/event_extraction), [知乎](https://zhuanlan.zhihu.com/p/141237763)
-    - Rank17: [github](https://github.com/onewaymyway/DuEE_2020), [方案分享](https://aistudio.baidu.com/aistudio/projectdetail/545914)
+5. 短期赛事Top方案汇总
+    - Rank：Joint抽取[视频](https://live.baidu.com/m/media/pclive/pchome/live.html?room_id=4008201814&source=h5pre)
+    - Rank12：MRC pipeline抽取[github](https://github.com/qiufengyuyi/event_extraction), [知乎](https://zhuanlan.zhihu.com/p/141237763)
+    - Rank17: 事件拼接pipeline抽取 [github](https://github.com/onewaymyway/DuEE_2020), [方案分享](https://aistudio.baidu.com/aistudio/projectdetail/545914)
     - Baseline
         - 官方：[paddlehub](https://github.com/PaddlePaddle/Research/tree/master/KG/DuEE_baseline/DuEE-PaddleHub)
         - 苏神： [github](https://github.com/bojone/lic2020_baselines), [博客](https://kexue.fm/archives/7321)
@@ -67,18 +67,13 @@
     }
     ```
 7. 请自行下载原始数据到duee/trainsample目录下，[下载地址](https://aistudio.baidu.com/aistudio/competition/detail/46/0/datasets)
-8. 相关方案
-- Top1: Joint抽取[视频](http://live.baidu.com/m/media/pclive/pchome/live.html?room_id=4008201814&source=h5pre)
-- Rank12: MRC抽取
-[github](https://github.com/qiufengyuyi/event_extraction)
-[方案总结](https://zhuanlan.zhihu.com/p/141237763)
-- Rank17: pipeline抽取 
-[github](https://github.com/onewaymyway/DuEE_2020),
- [方案总结](https://aistudio.baidu.com/aistudio/projectdetail/545914)
-- PaddleNLP基线方案:
-[github](https://github.com/PaddlePaddle/Research/tree/master/KG/DuEE_baseline/DuEE-PaddleHub),
-[代码解析](https://exmachinelearning.github.io/PaddleNLP_Homework/homework/duee.html)
-- 苏神基线方案: 
-[github](https://github.com/bojone/lic2020_baselines),
-[科学空间](https://kexue.fm/archives/7321)
+8. 方案评估（长期赛更新数据集）:
+| 方案    | Precision|  Recall  | F1     |
+| --- | --- | --- | --- |
+|Pipeline：事件BIO + Argument拼接事件BIO| 80.89% | 79.91%| 80.39% |
+|Pipeline：事件多标签 + Argument拼接事件BIO|81.36% | 79.25% | 80.29% |
+|Pipeline：事件SlotSelection + Argument拼接事件BIO  |81.38% | 79.22% | 80.28% |
+|Pipeline：事件SlotSelection + Argument MRC BIO | |  |  |
+|Joint Extraction with hard Sharing| |  |  |
+|Joint Extraction with soft Sharing| |  |  |
 
