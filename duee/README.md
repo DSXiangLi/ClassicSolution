@@ -70,9 +70,9 @@
 8. 方案评估（长期赛更新数据集）:
 | 方案    | Precision|  Recall  | F1     |
 | --- | --- | --- | --- |
-|Pipeline：事件BIO + Argument拼接事件BIO| 80.89% | 79.91%| 80.39% |
-|Pipeline：事件多标签 + Argument拼接事件BIO|81.36% | 79.25% | 80.29% |
-|Pipeline：事件SlotSelection + Argument拼接事件BIO  |81.38% | 79.22% | 80.28% |
+|Pipeline：事件BIO + Argument拼接事件BIO| 81.31% | 79.51%| 80.4% |
+|Pipeline：事件多标签 + Argument拼接事件BIO|81.74% | 78.89% | 80.29% |
+|Pipeline：事件SlotSelection + Argument拼接事件BIO  |81.63% | 78.87% | 80.22% |
 |Pipeline：事件SlotSelection + Argument MRC BIO | |  |  |
 |Joint Extraction with hard Sharing| |  |  |
 |Joint Extraction with soft Sharing| |  |  |
